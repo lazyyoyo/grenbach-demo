@@ -1,10 +1,11 @@
 (() => {
   'use strict';
-  const K=window.KEEP,R=K.rooms,Sim=window.KeepSim,DAY_MS=K.dayMs,$=id=>document.getElementById(id),world=$('world');
+  const K=window.KEEP,R=K.rooms,Sim=window.KeepSim,DAY_MS=K.dayMs,$=id=>document.getElementById(id),world=$('world'),stage=$('castle-stage');
   const STAT={str:'힘',dex:'손재주',heart:'마음'},BODY={str:'#cb844c',dex:'#c5ab47',heart:'#80ad70'},NAMES={food:'식량',wood:'장작',gold:'금화',sus:'의심',health:'건강',bond:'애착',satisfaction:'만족도',xp:'명성'};
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const clone=x=>JSON.parse(JSON.stringify(x)),best=f=>['str','dex','heart'].sort((a,b)=>f[b]-f[a])[0],sum=(a,k)=>a.reduce((n,f)=>n+f[k],0);
   let G=Sim.create(1),speed=2,previousSpeed=2,resumeSpeed=0,autoResume=false,dangerKey='',geo=null,acc=0,raidAcc=0,showing=false,dialogKind='',lastFocus=null,audio=null,lullTimers=[],tutorial=0,view='home',roomSelection=null,filter='all',auto=false,feedbackTimer,autoAccumulator=0,regionNeighbor='rosental',lastRes={...G.res},geometryKey='',uiActions=0,partySelection=new Set();
+  const camera={x:0,y:0,zoom:1,ready:false},growth={level:0,elapsed:1000,from:null,to:null};
   const figs=new Map(),slots=()=>Object.keys(G.rooms),typeOf=id=>G.rooms[id]?.type,slotOf=type=>Sim.slotOf(G,type),at=id=>G.folk.filter(f=>f.room===id&&!f.away),working=id=>Sim.workers(G,id),rateOf=id=>Sim.rate(G,id),popCap=()=>Sim.popCap(G);
   const fmt=n=>(n>=0?'+':'−')+Math.abs(n).toFixed(1),costText=c=>Object.entries(c).map(([k,v])=>`${NAMES[k]} −${v}`).join(' · ')||'비용 없음';
   const chip=(name,n)=>`<span class="chip ${n<0?'negative':'positive'}">${esc(name)} ${n<0?'−':'+'}${Math.abs(n)}</span>`;
@@ -33,7 +34,7 @@
     if(['restart','retry'].includes(a.type)){view='home';roomSelection=null;tutorial=a.type==='restart'?0:4;acc=0;raidAcc=0;G.sel=null;speed=2;previousSpeed=2;dangerKey='';}
     if(['assign','build','demolish'].includes(a.type))G.sel=null;
     if(a.type==='build'){roomSelection=a.slot;view='room';}
-    if(a.type==='demolish'){view='home';roomSelection=null;const r=geo.rooms[a.slot];if(r){const d=document.createElement('div');d.className='dust';d.style.cssText=`left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px`;world.append(d);setTimeout(()=>d.remove(),900);}}
+    if(a.type==='demolish'){view='home';roomSelection=null;const r=geo.rooms[a.slot];if(r){const d=document.createElement('div');d.className='dust';d.style.cssText=`left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px`;stage.append(d);setTimeout(()=>d.remove(),900);}}
     if(showing&&dialogKind!=='region')closeDialog();
     render();if(dialogKind==='region')regionSheet();pump();return true;
   }
@@ -46,8 +47,8 @@
   }
   function roomPanel(){
     const slot=roomSelection,r=G.rooms[slot];if(!slot)return '';
-    if(!r)return header('빈 터 · 건설')+`<p class="hint">${+slot[1]+1}층 ${+slot[3]+1}번 · 같은 종류는 누적 건설마다 금화 +15</p>`+Object.entries(R).filter(([,r])=>!r.fixed).map(([key,def])=>button(`${def.name} 건설`,{type:'build',slot,room:key},`${costText(Sim.price(G,{type:'build',slot,room:key}))} · ${def.desc}`)).join('');
-    const a={type:'upgrade',slot};return header(`${R[r.type].name} · Lv${r.level}`)+`<p class="hint">${R[r.type].desc}</p><h3>일하는 사람 ${working(slot).length}/${Sim.capacity(G,slot)}</h3>${at(slot).map(f=>`<button class="queue-button" data-person="${f.id}">${f.name} · ${STAT[best(f)]} ${f[best(f)]} ★</button>`).join('')}<button class="btn" data-view="folk">사람 선택 → 이 방 클릭</button>${R[r.type].res?meter(`하루 생산 +${rateOf(slot).toFixed(1)}`,working(slot).length,Sim.capacity(G,slot)):''}${r.type==='forge'?craftPanel():''}${r.type==='nursery'?`<h3>율리안 돌보기</h3><button class="opt" id="lullaby"><b>율리안에게 자장가</b><span>세 음을 듣고 따라 부르기 · 건강 +4 · 애착 +8</span></button>${button('율리안 진찰',{type:'checkup'},'금화 −8 · 건강 +10 · 하루 한 번')}<button class="opt" data-registry><b>호적 ${G.julian.registry?'변경':'결정'}</b><span>${G.julian.registry?'금화 −80 · 의심 +15':'감찰 전 누구의 아이로 올릴지 선택'}</span></button>`:''}${r.type==='gate'?meter('성문 HP',G.gateHP,Sim.gateMax(G),'health')+button('성문 수리',{type:'repair'},'장작 −12 · 금화 −8 · 3일')+button(`성벽 Lv${G.wallLevel+1} 강화`,{type:'wall'},costText(Sim.price(G,{type:'wall'}))):''}<h3>건물 관리</h3>${button('업그레이드',a,`${costText(Sim.price(G,a))} · Lv${Math.min(3,r.level+1)}`)}${r.fire?button('불 끄기',{type:'extinguish',slot},'장작 −4'):''}${R[r.type].res?button('생산 재촉',{type:'rush',slot},'하루치 즉시 생산 · 실패 시 화재'):''}${!R[r.type].fixed?`<button class="opt" data-demolish="${slot}" ${Sim.validate(G,{type:'demolish',slot})?'disabled':''}><b>철거</b><span>${Sim.validate(G,{type:'demolish',slot})||`기본비 20% · 환급 금화 +${Math.floor(R[r.type].cost*.2)*r.size}`}</span></button>`:''}`;
+    if(!r)return header('빈 터 · 건설')+`<p class="hint">${+slot[1]+1}층 ${+slot[3]-Sim.firstColumn(G)+1}번 · 같은 종류는 누적 건설마다 금화 +15</p>`+Object.entries(R).filter(([,r])=>!r.fixed).map(([key,def])=>button(`${def.name} 건설`,{type:'build',slot,room:key},`${costText(Sim.price(G,{type:'build',slot,room:key}))} · ${def.desc}`)).join('');
+    const a={type:'upgrade',slot};return header(`${R[r.type].name} · Lv${r.level}`)+`<p class="hint">${R[r.type].desc}</p><h3>일하는 사람 ${working(slot).length}/${Sim.capacity(G,slot)}</h3>${at(slot).map(f=>`<button class="queue-button" data-person="${f.id}">${f.name} · ${STAT[best(f)]} ${f[best(f)]} ★</button>`).join('')}<button class="btn" data-view="folk">사람 선택 → 이 방 클릭</button>${R[r.type].res?meter(`하루 생산 +${rateOf(slot).toFixed(1)}`,working(slot).length,Sim.capacity(G,slot)):''}${r.type==='forge'?craftPanel():''}${r.type==='nursery'?`<h3>율리안 돌보기</h3><button class="opt" id="lullaby"><b>율리안에게 자장가</b><span>세 음을 듣고 따라 부르기 · 건강 +4 · 애착 +8</span></button>${button('율리안 진찰',{type:'checkup'},'금화 −8 · 건강 +10 · 하루 한 번')}<button class="opt" data-registry><b>호적 ${G.julian.registry?'변경':'결정'}</b><span>${G.julian.registry?'금화 −80 · 의심 +15':'감찰 전 누구의 아이로 올릴지 선택'}</span></button>`:''}${r.type==='gate'?meter('성문 HP',G.gateHP,Sim.gateMax(G),'health')+button('성문 수리',{type:'repair'},'장작 −12 · 금화 −8 · 3일')+button(`성벽 Lv${G.wallLevel+1} 강화`,{type:'wall'},costText(Sim.price(G,{type:'wall'}))):''}${r.type==='dorm'?`<h3>숙소 정원과 밤 회복</h3><p>${lodgingText()}</p><p class="hint">배치된 방에서 잠들며, 대기자만 숙소에서 쉽니다. 숙소 정원은 모든 숙소의 칸 × 레벨 × 4 합계입니다.</p>`:''}<h3>건물 관리</h3>${button('업그레이드',a,`${costText(Sim.price(G,a))} · Lv${Math.min(3,r.level+1)}`)}${r.fire?button('불 끄기',{type:'extinguish',slot},'장작 −4'):''}${R[r.type].res?button('생산 재촉',{type:'rush',slot},'하루치 즉시 생산 · 실패 시 화재'):''}${!R[r.type].fixed?`<button class="opt" data-demolish="${slot}" ${Sim.validate(G,{type:'demolish',slot})?'disabled':''}><b>철거</b><span>${Sim.validate(G,{type:'demolish',slot})||`기본비 20% · 환급 금화 +${Math.floor(R[r.type].cost*.2)*r.size}`}</span></button>`:''}`;
   }
   function folkPanel(){const f=G.folk.find(f=>f.id===G.sel);if(!f)return header('영지민')+'<p>왼쪽 명부에서 사람을 선택하세요. 선택한 다음 지도 방을 누르면 배치됩니다.</p>';
     return header('영지민 상세')+`<div class="portrait-line">${portrait(f)}<div><b>${f.name}</b><small>${f.role} · Lv${f.level}<br>${R[typeOf(f.room)]?.name||'숙소 휴식'}</small></div></div>${meter('체력',f.hp,Sim.maxHP(f),'health')}${stats(f)}${meter('만족도',f.satisfaction)}<p class="hint">생산 ×${Sim.satisfactionMult(f.satisfaction).toFixed(2)} · ${f.satisfaction<40?'태업 생산 −30%':'40 미만이면 태업'}</p>${f.reasons.slice(-4).reverse().map(r=>`<div class="hint">${r.text} <span class="${r.value<0?'dn':'up'}">${fmt(r.value)}</span></div>`).join('')}<h3>특장점</h3><p>${K.traits[f.trait].name} · ${K.traits[f.trait].desc}</p><h3>무기</h3><p>${K.weapons.find(w=>w.id===f.weapon)?.name||'비어 있음'}</p><button class="btn" data-view="bag">가방에서 장착</button>${button('숙소로 쉬러 보내기',{type:'assign',id:f.id,slot:null})}<h3>발자취</h3><p class="hint">${f.history.slice(-3).map(h=>`${h.day}일 ${R[typeOf(h.room)]?.name||'휴식'}`).join(' → ')}</p>`;
@@ -64,16 +65,17 @@
     const task=G.raid?'성문을 지키세요. 사람 선택 → 방 클릭으로 수비 교대':G.sel?`${G.folk.find(f=>f.id===G.sel)?.name} 선택 중 → 빛나는 방을 클릭하세요`:!working(slotOf('nursery')).length?'요람실이 비었습니다 → 마음 높은 사람을 배치하세요':Sim.daily(G).food<0?'식량이 줄고 있습니다 → 주방에 사람을 배치하세요':G.gateHP<Sim.gateMax(G)*.6?'성문이 약해졌습니다 → 성문을 눌러 수리하세요':G.day<38&&!G.julian.registry?'여름 감찰을 준비하세요 → 요람실에서 호적을 정할 수 있습니다':G.crafts.length?'제작이 진행 중입니다 → 완성품은 가방에서 장착하세요':'빈 터를 눌러 성을 넓히고, 다가오는 일을 확인하세요';
     $('next-task').textContent='지금 할 일 · '+task;
     let html=view==='room'?roomPanel():view==='folk'?folkPanel():view==='bag'?bagPanel():view==='scout'?scoutPanel():view==='records'?recordsPanel():view==='forge'?header('대장간')+craftPanel():homePanel();
-    if(view==='build')html=header('건설할 빈 터 선택')+'<p>지도에서 ＋ 빈 터를 누르세요.</p>'+Object.keys(G.rooms).filter(id=>G.rooms[id]===null&&Sim.unlocked(G,id)).map(id=>`<button class="queue-button" data-slot="${id}">${+id[1]+1}층 ${+id[3]+1}번 빈 터</button>`).join('');
+    if(view==='build')html=header('건설할 빈 터 선택')+'<p>지도에서 ＋ 빈 터를 누르세요.</p>'+Object.keys(G.rooms).filter(id=>G.rooms[id]===null&&Sim.unlocked(G,id)).map(id=>`<button class="queue-button" data-slot="${id}">${+id[1]+1}층 ${+id[3]-Sim.firstColumn(G)+1}번 빈 터</button>`).join('');
     $('panel').className='panel';$('panel').innerHTML=html;$('lullaby')?.addEventListener('click',lullaby);
     $('selection').textContent=G.sel?`${G.folk.find(f=>f.id===G.sel)?.name} 선택됨 · 빛나는 방 클릭 = 배치 · Esc 취소`:view==='build'?'＋ 빈 터를 클릭해 건설하세요':'';
   }
+  function lodgingText(){const l=Sim.lodging(G);return `정원 ${l.population}/${l.capacity} · 밤 회복 ${Math.round(l.ratio*100)}%`;}
   function renderLeft(){
     if(view==='folk'){
       $('leftcard').innerHTML=`<div><h3>영지민 명부 ${G.folk.length}/${popCap()}</h3><div class="filters">${[['all','전체'],['work','일함'],['rest','휴식'],['away','파견'],['hurt','부상']].map(([id,n])=>`<button data-filter="${id}" aria-pressed="${filter===id}">${n}</button>`).join('')}</div><div id="roster" class="roster-grid">${G.folk.filter(f=>filter==='all'||filter==='work'&&f.room&&!f.away&&!f.hurt||filter==='rest'&&!f.room&&!f.away&&!f.hurt||filter==='away'&&f.away||filter==='hurt'&&f.hurt).map(f=>`<button class="person ${G.sel===f.id?'selected':''}" data-person="${f.id}" aria-label="${f.name} 선택">${portrait(f)}<b>${f.name}</b><small>${f.away?'파견 중':f.hurt?'부상 '+f.hurt+'일':R[typeOf(f.room)]?.name||'휴식'}</small></button>`).join('')}</div><p class="hint">사람 선택 → 지도 방 클릭<br>주황 힘 · 노랑 손재주 · 초록 마음</p></div>`;return;
     }
     const j=G.julian,next=Sim.forecast(G),avg=Sim.averageSatisfaction(G),d=Sim.daily(G);
-    $('leftcard').innerHTML=`<div id="crib"><div class="portrait-line"><img src="media/julian.webp" alt="율리안"><div><b>율리안</b><small>${Sim.growth(G)} · ${Math.min(12,G.day/10).toFixed(1)}개월<br>호적: ${K.registries[j.registry]?.name||'아직 미정'}</small></div></div><div class="growth-figure" title="갓난아기 → 뒤집기 → 기어가기 → 붙잡고 서기 → 첫걸음">${K.growth.map((_,i)=>`<i class="${i<=j.growth?'done':''}"></i>`).join('')}</div>${meter('건강',j.health,100,'health')}${meter('애착',j.bond,100,'bond')}</div><div id="crisis"><h3>위기</h3>${meter(`황후궁 의심 <small class="${d.sus>0?'dn':'up'}">${fmt(d.sus)}/일</small>`,G.sus,100,'danger')}${meter('성문 HP',G.gateHP,Sim.gateMax(G),'health')}${next?`<div class="raid-warning ${next.power>next.defense?'danger':''}">다음 습격 D-${next.days} · 예상 ${Math.round(next.power)} vs 방어 ${Math.round(next.defense)}<br>${next.power>next.defense?'성문·무기·수비 인원을 준비하세요':'방어 준비 양호 · 성문 HP도 확인하세요'}</div>`:'<small>올해의 습격을 모두 넘겼습니다.</small>'}</div><div id="satisfaction" class="tooltip" tabindex="0">${meter('영지민 만족도 평균',avg)}<small>생산 ×${Sim.satisfactionMult(avg).toFixed(2)} · 세금 ${Math.round(avg)}%</small><span class="tip">만족도 — 어디에 쓰이나\n생산 ×0.8~1.2\n40 미만: 태업, 생산 추가 −30%\n20 미만: 계절 말 일반 주민 이탈\n세금: 평균 만족도 비례\n\n배치 적성 +0.2/일\n숙소 휴식 +0.3~0.8/일\n식량 부족·추위 −3/일\n사건 선택 ± · 사망 −12\n개별 원인은 영지민 상세에서 확인</span></div><div id="objectives"><h3>${K.seasons[Sim.season(G)]} 목표</h3>${Sim.objectives(G).map((g,i)=>`<div class="goal"><span>${g.done?'☑':'□'} ${g.text}</span><small>명성 +${5+i*3}</small></div>`).join('')}</div>`;
+    $('leftcard').innerHTML=`<div id="crib"><div class="portrait-line"><img src="media/julian.webp" alt="율리안"><div><b>율리안</b><small>${Sim.growth(G)} · ${Math.min(12,G.day/10).toFixed(1)}개월<br>호적: ${K.registries[j.registry]?.name||'아직 미정'}</small></div></div><div class="growth-figure" title="갓난아기 → 뒤집기 → 기어가기 → 붙잡고 서기 → 첫걸음">${K.growth.map((_,i)=>`<i class="${i<=j.growth?'done':''}"></i>`).join('')}</div>${meter('건강',j.health,100,'health')}${meter('애착',j.bond,100,'bond')}</div><div id="crisis"><h3>위기</h3>${meter(`황후궁 의심 <small class="${d.sus>0?'dn':'up'}">${fmt(d.sus)}/일</small>`,G.sus,100,'danger')}${meter('성문 HP',G.gateHP,Sim.gateMax(G),'health')}${next?`<div class="raid-warning ${next.power>next.defense?'danger':''}">다음 습격 D-${next.days} · 예상 ${Math.round(next.power)} vs 방어 ${Math.round(next.defense)}<br>${next.power>next.defense?'성문·무기·수비 인원을 준비하세요':'방어 준비 양호 · 성문 HP도 확인하세요'}</div>`:'<small>올해의 습격을 모두 넘겼습니다.</small>'}</div><div id="satisfaction" class="tooltip" tabindex="0">${meter('영지민 만족도 평균',avg)}<small>생산 ×${Sim.satisfactionMult(avg).toFixed(2)} · 세금 ${Math.round(avg)}%</small><span class="tip">만족도 — 어디에 쓰이나\n생산 ×0.8~1.2\n40 미만: 태업, 생산 추가 −30%\n20 미만: 계절 말 일반 주민 이탈\n세금: 평균 만족도 비례\n\n배치 적성 +0.2/일\n${lodgingText()}\n숙소 휴식 +0.3~0.8/일 × 밤 회복 비율\n식량 부족·추위 −3/일\n사건 선택 ± · 사망 −12\n개별 원인은 영지민 상세에서 확인</span></div><div id="objectives"><h3>${K.seasons[Sim.season(G)]} 목표</h3>${Sim.objectives(G).map((g,i)=>`<div class="goal"><span>${g.done?'☑':'□'} ${g.text}</span><small>명성 +${5+i*3}</small></div>`).join('')}</div>`;
   }
   function renderHud(){
     const d=Sim.daily(G),season=Sim.season(G),day=Math.min(G.day%30+1,30);
@@ -92,7 +94,7 @@
   }
   const lessons=['엘레노어를 선택하고 주방을 눌러 배치해 보세요. 아래 영지민(F)을 열거나 지도 위 사람을 누릅니다.','지도 ＋ 빈 터를 눌러 숙소나 대장간을 지으세요. 금화와 역할은 버튼 안에 있습니다.','봄 4일에 첫 사건이 옵니다. 시간이 흐르는 동안 요람실을 살펴보세요. 사건에서 선택지를 누르세요.','상단 2×를 눌러 시간을 진행하세요. Space는 멈춤, 1·2·3은 배속입니다.'];
   function renderTutorial(){$('tutorial').innerHTML=tutorial<4?`<div class="tutorial"><b>하인츠의 안내 ${tutorial+1}/4</b><p>${lessons[tutorial]}</p><button class="btn" id="tutorial-skip">안내 건너뛰기</button></div>`:'';}
-  function render(){const key=JSON.stringify([G.rooms,G.level,world.clientWidth,world.clientHeight]);if(key!==geometryKey){geometryKey=key;buildCastle();}renderLeft();renderHud();renderPanel();renderTutorial();syncRooms();animate(0);}
+  function render(){const key=JSON.stringify([G.rooms,G.level,G.folk.length,world.clientWidth,world.clientHeight]);if(key!==geometryKey){geometryKey=key;buildCastle();}renderLeft();renderHud();renderPanel();renderTutorial();syncRooms();animate(0);}
   function setSpeed(n){if(![0,1,2,4].includes(n))return speed;if(G.raid&&n>1){feedback('습격 중에는 1×로 공방을 지켜봅니다. 일시정지는 가능합니다.');return speed;}speed=n;if(n)previousSpeed=n;resumeSpeed=0;if(tutorial===3&&n>0)tutorial=4;renderHud();renderTutorial();return speed;}
   function registrySheet(){sheet('율리안의 호적',`<p>감찰과 애착, 1세 능력치의 씨앗을 정합니다.</p>${Object.entries(K.registries).map(([registry,r])=>button(r.name,{type:'registry',registry},`${r.desc} · ${costText(Sim.price(G,{type:'registry'}))}${G.julian.registry?' · 의심 +15':''}`)).join('')}${closeButton()}`,'manage');}
   function regionSheet(){const id=regionNeighbor,n=K.neighbors[id];sheet('변경 지도',`<p class="pause-note">시간 정지 중 · 주변 영지 / 레헨스부르크</p><div class="region-grid"><div class="region-map"><b class="capital-point">♜ 그렌바흐</b>${Object.entries(K.neighbors).map(([id,n])=>`<button data-neighbor="${id}" class="${regionNeighbor===id?'active':''}" aria-label="${n.name} 선택">${Math.round(G.neighbors[id])}<br>${n.name}</button>`).join('')}</div><div><section class="region-detail"><h3>${n.name}</h3><p class="hint">${n.direction} · ${G.neighbors[id]>=70?'동맹':'중립'}</p>${meter('호감 / 동맹 70',G.neighbors[id])}<p>${n.benefit}</p>${button('식량 선물',{type:'gift',neighbor:id,gift:'food'},'식량 −15 · 호감 +10')}${button('금화 선물',{type:'gift',neighbor:id,gift:'gold'},'금화 −15 · 호감 +12')}${G.inventory.filter(w=>K.weapons.some(x=>x.id===w)).map(w=>button('무기 선물: '+K.weapons.find(x=>x.id===w).name,{type:'gift',neighbor:id,gift:'weapon',weapon:w},`무기 −1 · 호감 +${10+K.weapons.find(x=>x.id===w).power}`)).join('')}<label>사절 <select id="envoy-person" aria-label="보낼 사절">${G.folk.filter(f=>!f.hurt&&!f.away).map(f=>`<option value="${f.id}">${f.name} · 마음 ${f.heart}</option>`).join('')}</select></label><button class="opt" data-envoy="${id}"><b>사절 보내기</b><span>식량 −6 · 3일 부재 · 귀환 대화 호감 +5~25</span></button>${G.expeditions.filter(e=>e.kind==='envoy').map(e=>`<p class="hint">${K.neighbors[e.neighbor].name} 사절 이동 중 D-${e.returnAt-G.elapsedDays}</p>`).join('')}</section><section class="region-detail"><h3>레헨스부르크 소식 · ${K.seasons[Sim.season(G)]}</h3><div>황제파 ${G.capital.emperor}% / 황후파 ${G.capital.empress}%</div><div class="partybar"><i style="width:${G.capital.emperor}%"></i></div>${G.capital.rumors.map(r=>`<p class="hint">· ${r}</p>`).join('')}${chip('무기 판매가',Math.round((G.capital.weaponSale-1)*100))}${chip('의심/일',G.capital.suspicion)}</section></div></div>${closeButton()}`,'region');}
@@ -125,7 +127,7 @@
     if(el.dataset.destination){dispatch({type:'scout',destination:el.dataset.destination,ids:selectedParty()});return;}
     if(el.dataset.caravan){const id=el.dataset.caravan;dispatch({type:'caravan',cargo:['food','wood'].includes(id)?id:'weapon',...(!['food','wood'].includes(id)?{weapon:id}:{}),ids:selectedParty()});return;}
     if(el.id==='tutorial-skip'){tutorial=4;renderTutorial();return;}
-    if(el.id==='help'){sheet('하인츠의 안내',`<p>${lessons.join('\n\n')}</p><p>120일 · 1× 하루 15초. 사건과 지도는 시간을 멈춥니다.\n겨울에는 장작 소모가 큽니다. 성문 HP와 요람실을 지키세요.</p>${closeButton()}`,'manage');return;}
+    if(el.id==='help'){sheet('하인츠의 안내',`<p>${lessons.join('\n\n')}</p><p>배경 드래그: 성 이동 · 휠: 세로 이동 · Shift+휠: 가로 이동 · Ctrl+휠 또는 +/−: 확대·축소 · Home: 성문으로.\n120일 · 1× 하루 15초. 사건과 지도는 시간을 멈춥니다.\n겨울에는 장작 소모가 큽니다. 성문 HP와 요람실을 지키세요.</p>${closeButton()}`,'manage');return;}
     if(el.id==='region'){regionSheet();return;}
     if(['build','folk','bag','forge','scout','records'].includes(el.id)){view=el.id;roomSelection=null;render();}
   });
@@ -135,6 +137,7 @@
     if(e.key==='Tab'&&showing){const a=[...$('modal').querySelectorAll('button:not(:disabled),input,select')],first=a[0],last=a.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}return;}
     if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;
     if(e.key==='Escape'){cancel();return;}if(showing){if(dialogKind==='event'){const i=['q','w','e','r'].indexOf(e.key.toLowerCase());if(i>=0){const el=$('modal').querySelectorAll('[data-action]')[i];el?.click();}}return;}
+    if(e.key==='Home'){e.preventDefault();homeCamera();return;}
     if(e.code==='Space'){e.preventDefault();setSpeed(speed?0:previousSpeed||2);return;}
     if(['1','2','3'].includes(e.key)){setSpeed([1,2,4][+e.key-1]);return;}
     const id={b:'build',f:'folk',i:'bag',c:'forge',s:'scout',m:'region',l:'records'}[e.key.toLowerCase()];if(id){e.preventDefault();$(id).click();}
@@ -144,17 +147,17 @@
   function figHTML(f, kind) {
     const hair = f.hero ? '#2A2220' : f.id === 'ottilie' ? '#C9C6C0' : kind === 'raider' || f.raiderLook ? '#3A2B20' : '#6B4A30';
     const body = kind === 'raider' ? '#8E2F2A' : BODY[best(f)];
-    return `<div class="hair" style="background:${hair}"></div><div class="h"></div><div class="b" style="background:${body}${f.hero ? ';box-shadow:inset 0 3px 0 #B9A889' : ''}"></div><div class="l a"></div><div class="l c"></div>${kind ? '' : `<div class="hpb"><i></i></div>`}<div class="nm">${esc(f.name)}</div>`;
+    return `<div class="hair" style="background:${hair}"></div><div class="h"></div><div class="b" style="background:${body}${f.hero ? ';box-shadow:inset 0 3px 0 #B9A889' : ''}"></div><div class="l a"></div><div class="l c"></div>${kind ? '' : `<div class="hpb"><i></i></div>`}<div class="nm">${esc(f.name)}</div>${kind?'':'<span class="sleep-mark" aria-hidden="true">z</span>'}`;
   }
   function areaOf(f) {
-    const restSlot=(!f.room||acc/DAY_MS>.78)&&!G.raid?slotOf('dorm'):null,actual=restSlot||f.room;
-    if (actual && geo.rooms[actual]) { const r = geo.rooms[actual]; return { x0: r.x + 16, x1: r.x + r.w - (typeOf(f.room) === 'nursery' ? 66 : 18), floor: r.y + r.h - 9 }; }
+    const actual=f.room||slotOf('dorm');
+    if (actual && geo.rooms[actual]) { const r = geo.rooms[actual]; return { x0: r.x + 16, x1: r.x + r.w - (typeOf(f.room) === 'nursery' ? 66 : 18), floor: r.y + r.h - 22 }; }
     const y = geo.yard; return { x0: y.x + 14, x1: y.x + y.w - 14, floor: y.y + y.h - 4 };
   }
   function ensureFig(id, f, kind) {
     let o = figs.get(id);
     if (!o) {
-      const el = document.createElement('div'); el.className = 'fig' + (kind ? ' npc ' + kind : ''); el.innerHTML = figHTML(f, kind); world.appendChild(el);
+      const el = document.createElement('div'); el.className = 'fig' + (kind ? ' npc ' + kind : ''); el.innerHTML = figHTML(f, kind); stage.appendChild(el);
       const a = areaOf(f); o = { el, x: a.x0 + Math.random() * (a.x1 - a.x0), tx: null, wait: 0, room: f.room, kind };
       figs.set(id, o);
       if (!kind) { bindDrag(el, id); el.tabIndex=0; el.setAttribute('role','button'); el.setAttribute('aria-label',f.name+' 선택'); el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();selectFolk(id);}}); }
@@ -164,15 +167,25 @@
   function animate(dt) {
     if (!G || !geo) return;
     const alive = new Set(), perRoom = {};
+    const place=f=>f.room||slotOf('dorm')||'yard';
     for (const f of G.folk) {
       if (f.away) continue;
       alive.add(f.id);
       // 같은 방 사람끼리 이름표가 겹치지 않게 짝수번째는 발밑, 홀수번째는 머리 위
-      const nth = perRoom[f.room || 'yard'] = (perRoom[f.room || 'yard'] ?? -1) + 1;
+      const nth = perRoom[place(f)] = (perRoom[place(f)] ?? -1) + 1;
       const o = ensureFig(f.id, f), a = areaOf(f);
+      // 같은 높이 이름표에는 서로 떨어진 가로 구간을 배정한다.
+      const count=G.folk.filter(p=>!p.away&&place(p)===place(f)).length;
+      const areaWidth=a.x1-a.x0,lane=areaWidth/Math.max(1,count),center=a.x0+lane*(nth+.5);
+      a.x0=center-Math.min(4,lane*.05);a.x1=center+Math.min(4,lane*.05);
+      o.el.dataset.personId=f.id;o.el.dataset.room=place(f);
+      o.el.classList.toggle('sleeping',acc/DAY_MS>.78);
+      o.el.querySelector('.nm').style.maxWidth=Math.max(12,Math.min(areaWidth,2*lane-10))+'px';
       if (o.room !== f.room) { o.room = f.room; o.x = a.x0 + Math.random() * (a.x1 - a.x0); o.tx = null; }
       if (o.dragging) continue;
-      const working = f.room && !f.hurt && G.raid?.path[G.raid.idx] !== f.room;
+      const working = acc/DAY_MS<=.78 && f.room && !f.hurt && G.raid?.path[G.raid.idx] !== f.room;
+      if(o.tx<a.x0||o.tx>a.x1)o.tx=null;
+      if(acc/DAY_MS>.78){o.tx=null;o.wait=500;}
       if (o.wait > 0) o.wait -= dt;
       else if (o.tx == null) o.tx = a.x0 + Math.random() * (a.x1 - a.x0);
       else { const dx = o.tx - o.x, st = 0.03 * dt; if (Math.abs(dx) <= st) { o.x = o.tx; o.tx = null; o.wait = working ? 1400 + Math.random() * 2000 : 600 + Math.random() * 1600; } else o.x += Math.sign(dx) * st; }
@@ -182,7 +195,7 @@
       o.el.classList.toggle('work', !!(working && o.tx == null));
       o.el.classList.toggle('hurt', !!f.hurt);
       o.el.classList.toggle('sel', G.sel === f.id);o.el.title=`${f.name} · 힘 ${f.str} 손재주 ${f.dex} 마음 ${f.heart} · 클릭 후 방 클릭으로 배치`; o.el.querySelector('.b').style.background = BODY[best(f)];
-      o.el.querySelector('.nm').style.top = '-13px';
+      o.el.querySelector('.nm').style.top = nth%2===0?'39px':'-16px';
       o.el.querySelector('.hpb i').style.width = (f.hp / Sim.maxHP(f) * 100) + '%';
     }
     // 호르칸
@@ -207,7 +220,7 @@
     el.addEventListener('pointermove', e => {
       if (e.pointerId !== pid) return;
       if (!moved && Math.hypot(e.clientX - sx, e.clientY - sy) > 6) { moved = true; G.sel = id; figs.get(id).dragging = true; el.classList.add('drag'); syncRooms(); }
-      if (moved) { const b = world.getBoundingClientRect(); el.style.left = (e.clientX - b.left) + 'px'; el.style.top = (e.clientY - b.top - 30) + 'px'; }
+      if (moved) { const p=worldPoint(e); el.style.left=p.x+'px';el.style.top=(p.y-30)+'px'; }
     });
     const up = e => {
       if (e.pointerId !== pid) return; pid = null;
@@ -219,7 +232,7 @@
         selectFolk(id); return;
       }
       o.dragging = false;
-      const b = world.getBoundingClientRect(), px = e.clientX - b.left, py = e.clientY - b.top;
+      const {x:px,y:py}=worldPoint(e);
       const slot = Object.entries(geo.rooms).find(([, r]) => px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h)?.[0];
       const y = geo.yard;
       if (slot) assign(id, slot); else if (px >= y.x && px <= y.x + y.w && py >= y.y - 20 && py <= y.y + y.h) { assign(id, null); }
@@ -235,32 +248,84 @@
     folk: '<svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="4" fill="#EBC9A8"/><rect x="6" y="12" width="12" height="9" rx="4" fill="#5A7FA8"/></svg>',
   };
   const DECOR={gate:'<div class="dec"></div><div class="banner-wolf"></div>',lumber:'<div class="dec"></div>',kitchen:'<div class="dec"></div>',forge:'<div class="dec"></div><div class="anvil"></div>',barracks:'<div class="dec"></div><div class="dummy"></div>',dorm:'<div class="dec"></div>',parlor:'<div class="dec"></div>',nursery:'<div class="cradle" id="cradle"></div>'};
+  function worldPoint(e){const b=world.getBoundingClientRect();return {x:(e.clientX-b.left-camera.x)/camera.zoom,y:(e.clientY-b.top-camera.y)/camera.zoom};}
+  function applyCamera(){
+    if(!geo)return;
+    const w=geo.wall,z=camera.zoom;
+    camera.zoom=Math.max(.6,Math.min(1.4,z));
+    camera.x=Math.max(70-(w.x+w.w+130)*z,Math.min(geo.W-70-(w.x-130)*z,camera.x));
+    camera.y=Math.max(100,Math.min(geo.H-100-(w.y-65)*z,camera.y));
+    stage.style.transform=`translate(${camera.x}px,${camera.y}px) scale(${camera.zoom})`;
+    $('zoom-level').textContent=Math.round(camera.zoom*100)+'%';
+    $('zoom-out').disabled=camera.zoom<=.60001;$('zoom-in').disabled=camera.zoom>=1.39999;
+  }
+  function homeCamera(){
+    if(!geo)return;growth.elapsed=1000;
+    const gate=geo.rooms[slotOf('gate')],w=geo.wall;
+    camera.x=geo.W/2-(w.x+w.w/2)*camera.zoom;
+    if(w.w*camera.zoom>geo.W-40)camera.x=geo.W/2-(gate.x+gate.w/2)*camera.zoom;
+    camera.y=geo.H-70;camera.ready=true;applyCamera();
+  }
+  function zoomCamera(value,point={x:geo.W/2,y:geo.H/2}){
+    growth.elapsed=1000;const next=Math.max(.6,Math.min(1.4,value)),ratio=next/camera.zoom;
+    camera.x=point.x-(point.x-camera.x)*ratio;camera.y=point.y-(point.y-camera.y)*ratio;camera.zoom=next;applyCamera();
+  }
+  $('zoom-in').onclick=()=>zoomCamera(camera.zoom+.1);
+  $('zoom-out').onclick=()=>zoomCamera(camera.zoom-.1);
+  $('camera-home').onclick=homeCamera;
+  world.addEventListener('wheel',e=>{
+    if(showing)return;e.preventDefault();const unit=e.deltaMode===1?16:e.deltaMode===2?geo.H:1;
+    if(e.ctrlKey){const b=world.getBoundingClientRect();zoomCamera(camera.zoom*Math.exp(-e.deltaY*unit*.002),{x:e.clientX-b.left,y:e.clientY-b.top});}
+    else{growth.elapsed=1000;if(e.shiftKey)camera.x-=(e.deltaY||e.deltaX)*unit;else{camera.y-=e.deltaY*unit;camera.x-=e.deltaX*unit;}applyCamera();}
+  },{passive:false});
+  let pan=null,suppressYardClick=false;
+  world.addEventListener('pointerdown',e=>{
+    if(showing||e.button!==0||e.target.closest('.fig,.room,.camera-controls'))return;
+    pan={id:e.pointerId,x:e.clientX,y:e.clientY,cx:camera.x,cy:camera.y,moved:false};
+  });
+  world.addEventListener('pointermove',e=>{
+    if(!pan||e.pointerId!==pan.id)return;
+    if(Math.hypot(e.clientX-pan.x,e.clientY-pan.y)>6)pan.moved=true;
+    if(pan.moved){world.setPointerCapture(e.pointerId);growth.elapsed=1000;camera.x=pan.cx+e.clientX-pan.x;camera.y=pan.cy+e.clientY-pan.y;world.classList.add('panning');applyCamera();}
+  });
+  function endPan(e){if(!pan||e.pointerId!==pan.id)return;suppressYardClick=pan.moved;pan=null;world.classList.remove('panning');if(world.hasPointerCapture(e.pointerId))world.releasePointerCapture(e.pointerId);setTimeout(()=>suppressYardClick=false,0);}
+  world.addEventListener('pointerup',endPan);world.addEventListener('pointercancel',endPan);
   function layoutGeo(){
-    const W=world.clientWidth||700,H=world.clientHeight||570,pad=34,gap=6,rows=G.level+1,rowH=Math.min(95,(H-154)/rows-6),cw=(W-pad*2-gap*2)/3,top=H-rows*(rowH+gap)-32;
-    const g={W,H,yard:{x:pad,y:top-48,w:W-pad*2,h:40},rooms:{},wall:{x:pad-6,y:top-6,w:W-pad*2+12,h:rows*(rowH+gap)+6}};
-    for(const id of slots()){const r=G.rooms[id];if(r?.mergedInto||!Sim.unlocked(G,id))continue;g.rooms[id]={x:pad+(+id[3])*(cw+gap),y:top+(+id[1])*(rowH+gap),w:cw*(r?.size||1)+gap*((r?.size||1)-1),h:rowH};}
+    const W=world.clientWidth||700,H=world.clientHeight||570,gap=6,rowH=95,cw=150,rows=G.level+1,cols=Sim.columns(G),left=Sim.firstColumn(G)*156,top=-95-(rows-1)*101,width=cols*156-gap;
+    const g={W,H,yard:{x:left,y:8,w:width,h:42},rooms:{},wall:{x:left-6,y:top-6,w:width+12,h:-top+12}};
+    for(const id of slots()){const r=G.rooms[id];if(r?.mergedInto||!Sim.unlocked(G,id))continue;g.rooms[id]={x:(+id[3])*156,y:-95-(+id[1])*101,w:cw*(r?.size||1)+gap*((r?.size||1)-1),h:rowH};}
     return g;
   }
   function buildCastle(){
-    geo=layoutGeo();world.classList.toggle('dense',Object.values(geo.rooms)[0]?.h<82);world.style.height=geo.H+'px';world.querySelectorAll('.yard,.keepwall,.room,.roof,.tower,.village,.trees').forEach(e=>e.remove());const y=geo.yard,w=geo.wall;
-    world.insertAdjacentHTML('beforeend',`<div class="yard" style="left:${y.x}px;top:${y.y}px;width:${y.w}px;height:${y.h}px"><div class="tag">안뜰 · 대기</div></div><div class="keepwall" style="left:${w.x}px;top:${w.y}px;width:${w.w}px;height:${w.h}px"></div>`);
-    world.insertAdjacentHTML('beforeend',`<div class="trees"><span>♠</span><span>♠</span><span>♠</span></div><div class="roof" style="left:${w.x-10}px;top:${w.y-28}px;width:${w.w+20}px"></div><div class="village" style="left:8px">${'⌂ '.repeat(G.level+1)}</div>${Array.from({length:Math.min(4,G.level)},(_,i)=>`<div class="tower" style="${i%2?'right':'left'}:${Math.floor(i/2)*12}px;height:${100+G.level*40-Math.floor(i/2)*40}px"></div>`).join('')}`);
+    const oldLevel=growth.level,oldRooms=new Set(Object.keys(geo?.rooms||{}));
+    geo=layoutGeo();world.querySelectorAll('.yard,.keepwall,.room,.roof,.tower,.village,.trees,.ground').forEach(e=>e.remove());const y=geo.yard,w=geo.wall;
+    stage.insertAdjacentHTML('beforeend',`<div class="ground" style="top:0px;left:${w.x-2000}px;width:${w.w+4000}px"></div><div class="yard" style="left:${y.x}px;top:${y.y}px;width:${y.w}px;height:${y.h}px"><div class="tag">안뜰 · 대기</div></div><div class="keepwall" style="left:${w.x}px;top:${w.y}px;width:${w.w}px;height:${w.h}px"></div>`);
+    const houses=Math.max(2,Math.ceil(G.folk.length/2));
+    stage.insertAdjacentHTML('beforeend',`<div class="roof" style="left:${w.x-10}px;top:${w.y-28}px;width:${w.w+20}px"></div>${Array.from({length:houses},(_,i)=>`<div class="village" style="left:${i%2?w.x+w.w+42+Math.floor(i/2)*40:w.x-75-Math.floor(i/2)*40}px;top:0px">⌂</div>`).join('')}${Array.from({length:G.level+1},(_,i)=>`<div class="tower" style="left:${i%2?w.x+w.w+Math.floor(i/2)*14:w.x-28-Math.floor(i/2)*14}px;top:${w.y-12+i*8}px;height:${-w.y+12-i*8}px"></div>`).join('')}`);
     for(const [id,r] of Object.entries(geo.rooms)){
       const type=typeOf(id),locked=!Sim.unlocked(G,id);
-      world.insertAdjacentHTML('beforeend',`<div class="room ${type?'r-'+type:'empty'} ${locked?'locked':''}" role="button" tabindex="0" aria-label="${+id[1]+1}층 ${+id[3]+1}번 ${type?R[type].name:locked?'잠긴 방':'건설'}" data-s="${id}" style="left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px">${type?`<div class="light"></div>${DECOR[type]||''}<div class="floor"></div><div class="tag">${R[type].name}<span class="cap"></span></div><div class="out"></div>${R[type].res?'<div class="prog"><i></i></div>':''}`:`<div class="build"><div><b>${locked?'·':'＋'}</b>${locked?'영지 Lv'+id[1]:'짓기'}</div></div>`}</div>`);
+      stage.insertAdjacentHTML('beforeend',`<div class="room ${type?'r-'+type:'empty'} ${locked?'locked':''}" role="button" tabindex="0" aria-label="${+id[1]+1}층 ${+id[3]-Sim.firstColumn(G)+1}번 ${type?R[type].name:locked?'잠긴 방':'건설'}" data-s="${id}" style="left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px">${type?`<div class="light"></div>${DECOR[type]||''}<div class="floor"></div><div class="tag">${R[type].name}<span class="cap"></span></div><div class="out"></div>${R[type].res?'<div class="prog"><i></i></div>':''}`:`<div class="build"><div><b>${locked?'·':'＋'}</b>${locked?'영지 Lv'+id[1]:'짓기'}</div></div>`}</div>`);
     }
-    world.querySelectorAll('.room').forEach(el=>{el.onclick=()=>tapSlot(el.dataset.s);el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();tapSlot(el.dataset.s);}};});world.querySelector('.yard').onclick=()=>{if(G.sel)assign(G.sel,null);};sizeSnow();syncRooms();
+    world.querySelectorAll('.room').forEach(el=>{el.onclick=()=>tapSlot(el.dataset.s);el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();tapSlot(el.dataset.s);}};});world.querySelector('.yard').onclick=()=>{if(!suppressYardClick&&G.sel)assign(G.sel,null);};
+    if(!camera.ready||G.level<oldLevel)homeCamera();
+    if(oldLevel&&G.level>oldLevel){
+      growth.elapsed=0;growth.from={...camera};
+      const zoom=camera.zoom;
+      growth.to={zoom,x:geo.W/2-(w.x+w.w/2)*zoom,y:geo.H-70};
+      world.querySelectorAll('.room').forEach(el=>{if(!oldRooms.has(el.dataset.s))el.classList.add('new-room');});
+    }
+    growth.level=G.level;applyCamera();sizeSnow();syncRooms();
   }
   function syncRooms(){
     if(!geo)return;
     const selected=G.folk.find(f=>f.id===G.sel);
-    world.querySelectorAll('.room').forEach(el=>{const id=el.dataset.s,type=typeOf(id),r=G.rooms[id];el.classList.toggle('raid',G.raid?.path[G.raid.idx]===id);el.classList.toggle('fire',!!r?.fire);el.classList.toggle('selected',roomSelection===id);el.setAttribute('aria-label',`${+id[1]+1}층 ${+id[3]+1}번 ${type?R[type].name:'건설'}`);el.classList.toggle('can',!!selected&&!Sim.validate(G,{type:'assign',id:selected.id,slot:id}));if(!type)return;
+    world.querySelectorAll('.room').forEach(el=>{const id=el.dataset.s,type=typeOf(id),r=G.rooms[id];el.classList.toggle('raid',G.raid?.path[G.raid.idx]===id);el.classList.toggle('fire',!!r?.fire);el.classList.toggle('selected',roomSelection===id);el.setAttribute('aria-label',`${+id[1]+1}층 ${+id[3]-Sim.firstColumn(G)+1}번 ${type?R[type].name:'건설'}`);el.classList.toggle('can',!!selected&&!Sim.validate(G,{type:'assign',id:selected.id,slot:id}));if(!type)return;
       el.querySelector('.cap').textContent=`L${r.level} ${R[type].cap?at(id).length+'/'+Sim.capacity(G,id):''}`;
       el.querySelector('.out').textContent=r.fire?'화재 '+r.fire+'일':R[type].res?`+${rateOf(id).toFixed(1)}/일`:type==='dorm'?`정원 +${4*r.level*r.size}`:type==='storage'?`저장 +${160*r.level*r.size}`:'';
     });
     if($('cradle')){$('cradle').dataset.stage=G.julian.growth;$('cradle').title=Sim.growth(G);$('cradle').innerHTML=working(slotOf('nursery')).length?'<span class="zz">z z</span>':'<span class="cry">으앙!</span>';}
     world.querySelectorAll('.raidbar').forEach(el=>el.remove());
-    if(G.raid){const r=geo.rooms[G.raid.path[G.raid.idx]];world.insertAdjacentHTML('beforeend',`<div class="raidbar" style="left:${r.x+8}px;top:${r.y+39}px;width:${r.w-16}px"><i style="width:${100*G.raid.hp/G.raid.max}%"></i></div>`);}
+    if(G.raid){const r=geo.rooms[G.raid.path[G.raid.idx]];stage.insertAdjacentHTML('beforeend',`<div class="raidbar" style="left:${r.x+8}px;top:${r.y+39}px;width:${r.w-16}px"><i style="width:${100*G.raid.hp/G.raid.max}%"></i></div>`);}
   }
 
   // 눈
@@ -310,14 +375,17 @@
     if(!showing)advance();
   }
   function skipDays(n){let count=0,guard=0;n=Math.min(600,Math.max(0,Number(n)||0));while(count<n&&G.status==='playing'&&guard++<n*30+50){const before=G.elapsedDays;if(auto)autoTurn();else{if(showing)break;advance();}if(G.elapsedDays!==before)count++;if(!auto&&showing)break;}if(auto){clearNotices();pump();}render();return clone(G);}
-  window.__keep={state:()=>clone(G),setSpeed,skipDays,autoplay(value){auto=!!value;return auto;},ui:()=>({speed,previousSpeed,resumeSpeed,showing,dialogKind,tutorial,view,uiActions}),layout:()=>({width:world.clientWidth,height:world.clientHeight,rooms:clone(geo.rooms)}),clickAction};
+  window.__keep={state:()=>clone(G),setSpeed,skipDays,autoplay(value){auto=!!value;return auto;},ui:()=>({speed,previousSpeed,resumeSpeed,showing,dialogKind,tutorial,view,uiActions}),layout:()=>({width:world.clientWidth,height:world.clientHeight,rooms:clone(geo.rooms),wall:clone(geo.wall),camera:{...camera}}),clickAction};
   let lastFrame=performance.now();
-  function frame(now){const elapsed=Math.min(1000,Math.max(0,now-lastFrame)),dt=Math.min(60,elapsed);lastFrame=now;animate(dt);drawSnow(dt);
+  function frame(now){const elapsed=Math.min(1000,Math.max(0,now-lastFrame)),dt=Math.min(60,elapsed);lastFrame=now;
+    if(growth.elapsed<1000){growth.elapsed=Math.min(1000,growth.elapsed+elapsed);const t=1-Math.pow(1-growth.elapsed/1000,3);for(const key of ['x','y'])camera[key]=growth.from[key]+(growth.to[key]-growth.from[key])*t;camera.zoom=Math.max(.6,growth.from.zoom*(1-.1*Math.sin(Math.PI*growth.elapsed/1000)));applyCamera();}
+    animate(dt);drawSnow(dt);
     if(auto){autoAccumulator+=elapsed;if(autoAccumulator>=100){autoAccumulator=0;autoTurn();}}
     else if(!showing&&(tutorial>=2||tutorial>=4)&&speed&&G.status==='playing'){
       if(G.raid){raidAcc+=elapsed;if(raidAcc>=1200){raidAcc=0;advance();}}
-      else{acc+=elapsed*speed;world.classList.toggle('night',acc/DAY_MS>.78);if(acc>=DAY_MS){acc-=DAY_MS;advance();}}
+      else{acc+=elapsed*speed;if(acc>=DAY_MS){acc-=DAY_MS;advance();}}
     }
+    world.classList.toggle('night',acc/DAY_MS>.78);
     world.querySelectorAll('.prog i').forEach(i=>i.style.width=Math.min(100,acc/DAY_MS*100)+'%');requestAnimationFrame(frame);
   }
   addEventListener('resize',()=>{geometryKey='';render();});render();pump();requestAnimationFrame(frame);

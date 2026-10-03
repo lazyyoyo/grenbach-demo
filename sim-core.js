@@ -31,7 +31,12 @@
     K.layout.forEach((row,r)=>row.forEach((type,c)=>s.rooms[`r${r}c${c}`]=type?{type,level:1,size:1}:null));
     s.gateHP=140;s.wallLevel=1;s.repair=null;s.crafts=[];s.visitors=[];s.queue=[];s.events={};s.built={};s.neighbors={rosental:40,eisenberg:35,halden:45,berg:40};s.metrics={trade:0,recruited:0,checkup:0,raidDamage:0,emptyParlor:0};s.goals=[[],[],[],[]];s.warnings=[];s.julian.registry=null;s.julian.growth=0;s.julian.timeline=[{day:0,title:'갓난아기'}];for(const r of Object.values(s.rooms))if(r?.type)s.built[r.type]=(s.built[r.type]||0)+1;capitalNews(s);s.checkpoint=snapshot(s);return s;
   }
-  function unlocked(s,id){return /^r[0-5]c[0-2]$/.test(id)&&+id[1]<s.level+1;}
+  // 고정 좌표: r0은 지상, c1..3은 시작 열, c0/c4는 바깥 확장 열.
+  const columns=s=>s.level>=5?5:s.level>=3?4:3;
+  const firstColumn=s=>s.level>=3?0:1;
+  function unlocked(s,id){return /^r[0-5]c[0-4]$/.test(id)&&+id[1]<s.level+1&&+id[3]>=firstColumn(s)&&+id[3]<firstColumn(s)+columns(s);}
+  function lodging(s){const capacity=structures(s,'dorm').reduce((n,r)=>n+r.size*r.level*4,0),population=s.folk.length;return {capacity,population,ratio:population?Math.min(1,capacity/population):1};}
+  function restore(saved,seed=1){try{const s=typeof saved==='string'?JSON.parse(saved):saved;return validSave(s)?clone(s):create(seed);}catch{return create(seed);}}
   function rate(s,id){
     const r=room(s,id),def=K.rooms[r?.type];
     if(!def?.res||r.fire||(r.type==='field'&&season(s)>1))return 0;
@@ -249,9 +254,9 @@
       if(f.hurt){f.hurt--;if(!f.hurt)f.hp=maxHP(f);continue;}
       if(f.away)continue;
       if(hungry||cold)satisfaction(s,f,-3,hungry?'식량 부족':'추위');
-      else {const suited=K.rooms[room(s,f.room)?.type]?.stat;const fit=suited&&f[suited]>=Math.max(f.str,f.dex,f.heart);satisfaction(s,f,fit?.2:0,'배치 적성');satisfaction(s,f,popCap(s)>=s.folk.length&&structures(s,'dorm').length?(!f.room||room(s,f.room)?.type==='dorm'?.8:.3):.05,structures(s,'dorm').length?'숙소 휴식':'숙소 부족 · 회복 감소');}
+      else {const suited=K.rooms[room(s,f.room)?.type]?.stat;const fit=suited&&f[suited]>=Math.max(f.str,f.dex,f.heart);satisfaction(s,f,fit?.2:0,'배치 적성');satisfaction(s,f,(!f.room||room(s,f.room)?.type==='dorm'?.8:.3)*lodging(s).ratio,lodging(s).ratio===1?'숙소 휴식':'숙소 부족 · 회복 감소');}
       if(hungry||cold)damage(s,f.id,(hungry?3:0)+(cold?3*(trait(f).cold||1):0));
-      else f.hp=clamp(f.hp+(structures(s,'dorm').length?(!f.room||room(s,f.room)?.type==='dorm'?6:3):1),0,maxHP(f));
+      else f.hp=clamp(f.hp+(!f.room||room(s,f.room)?.type==='dorm'?6:3)*lodging(s).ratio,0,maxHP(f));
       const def=K.rooms[room(s,f.room)?.type];
       if(def?.stat&&!room(s,f.room).fire&&!(room(s,f.room).type==='field'&&season(s)>1)){
         f.xp++;f.work[def.stat]++;if(f.work[def.stat]%10===0)f[def.stat]=Math.min(10,f[def.stat]+(room(s,f.room).type==='barracks'?2:1));
@@ -375,13 +380,23 @@
   function act(state,action){const s=clone(state),error=perform(s,action);return {state:error?state:s,error};}
   // 구조화된 저장 검증: 손상되거나 이전 버전인 저장은 새 게임으로 대체한다.
   function validSave(s){
+    function validRooms(s){
+      return Object.keys(s.rooms).length===30&&Object.entries(s.rooms).every(([id,r])=>{
+        if(!/^r[0-5]c[0-4]$/.test(id))return false;
+        if(r===null)return true;
+        if(!unlocked(s,id))return false;
+        if(r.mergedInto){const anchor=s.rooms[r.mergedInto];return !!anchor?.type&&id[1]===r.mergedInto[1]&&+id[3]>+r.mergedInto[3]&&+id[3]<+r.mergedInto[3]+anchor.size;}
+        if(!K.rooms[r.type]||!Number.isInteger(r.level)||r.level<1||r.level>3||!Number.isInteger(r.size)||r.size<1||r.size>3)return false;
+        return Array.from({length:r.size},(_,offset)=>`r${id[1]}c${+id[3]+offset}`).every((cell,offset)=>unlocked(s,cell)&&(!offset||s.rooms[cell]?.mergedInto===id));
+      });
+    }
     function shape(s){
       const finite=(v,a=0,b=Infinity)=>Number.isFinite(v)&&v>=a&&v<=b;
-      return s&&s.version===K.version&&Number.isInteger(s.day)&&finite(s.day,0,120)&&Number.isInteger(s.year)&&s.year>0&&finite(s.level,1,5)&&finite(s.rng)&&finite(s.elapsedDays)&&finite(s.xp)&&finite(s.sus,0,100)
+      return s&&s.version===K.version&&Number.isInteger(s.day)&&finite(s.day,0,120)&&Number.isInteger(s.year)&&s.year>0&&Number.isInteger(s.level)&&finite(s.level,1,5)&&finite(s.rng)&&finite(s.elapsedDays)&&finite(s.xp)&&finite(s.sus,0,100)
         &&['food','wood','gold'].every(k=>finite(s.res[k]))&&['health','bond'].every(k=>finite(s.julian[k],0,100))
         &&['folk','notices','inventory','expeditions','graveyard','candidates','records','seen','log','yearReports'].every(k=>Array.isArray(s[k]))
         &&s.folk.every(f=>K.folk.some(p=>p.id===f.id)&&K.traits[f.trait]&&finite(f.hp)&&finite(f.hurt)&&finite(f.level,1,10)&&finite(f.satisfaction,0,100)&&finite(f.xp)&&['str','dex','heart'].every(k=>finite(f[k],1,10)&&finite(f.work[k]))&&Array.isArray(f.history))
-        &&Object.keys(s.rooms).length===18&&Object.entries(s.rooms).every(([id,r])=>/^r[0-5]c[0-2]$/.test(id)&&(r===null||r.mergedInto&&s.rooms[r.mergedInto]?.type||K.rooms[r.type]&&finite(r.level,1,3)&&finite(r.size,1,3)))
+        &&validRooms(s)&&s.folk.every(f=>f.room===null||!!s.rooms[f.room]?.type)
         &&s.inventory.every(id=>K.weapons.some(w=>w.id===id)||K.items[id])&&s.rush&&finite(s.failures)&&finite(s.blizzardUntil)&&Number.isFinite(s.lullabyDay)
         &&(!s.pending||!!eventFor(s,s.pending))&&(!s.raid||finite(s.raid.hp)&&finite(s.raid.max)&&Array.isArray(s.raid.path)&&s.raid.path.every(id=>s.rooms[id]?.type)&&Number.isInteger(s.raid.idx)&&s.raid.idx>=0&&s.raid.idx<s.raid.path.length)
         &&['playing','yearEnd','gameOver'].includes(s.status)&&finite(s.gateHP,0,gateMax(s))&&finite(s.wallLevel,1,3)&&Array.isArray(s.crafts)&&Array.isArray(s.queue)&&s.events&&s.built&&s.neighbors&&s.metrics&&s.capital&&Array.isArray(s.goals)&&Array.isArray(s.warnings)&&Array.isArray(s.julian.timeline);
@@ -389,7 +404,7 @@
     try{return !!(shape(s)&&s.checkpoint&&s.checkpoint.checkpoint===null&&shape(s.checkpoint));}catch{return false;}
   }
 
-  return {eventFor,visitor,averageSatisfaction,satisfactionMult,gateMax,defense,raidPower,forecast,craftDays,scoutRisk,tradePrice,merchantHere,growth:s=>K.growth[s.julian.growth],risks,objectives:s=>K.objectives[season(s)].map((text,i)=>({text,done:s.goals[season(s)].includes(i)})),create,step,act,validate,price,rate,daily,season,workers,slotOf,popCap,storageCap,capacity,unlocked,maxHP,weaponPower,validSave,
+  return {columns,firstColumn,lodging,restore,eventFor,visitor,averageSatisfaction,satisfactionMult,gateMax,defense,raidPower,forecast,craftDays,scoutRisk,tradePrice,merchantHere,growth:s=>K.growth[s.julian.growth],risks,objectives:s=>K.objectives[season(s)].map((text,i)=>({text,done:s.goals[season(s)].includes(i)})),create,step,act,validate,price,rate,daily,season,workers,slotOf,popCap,storageCap,capacity,unlocked,maxHP,weaponPower,validSave,
     // 순수 규칙 테스트용: 입력 사본에 피해를 가한다.
     injure(state,id,n){const s=clone(state);damage(s,id,n);return s;}};
 });

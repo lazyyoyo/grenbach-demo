@@ -31,12 +31,12 @@
     warm: { name: '다정한 손길', desc: '요람실 건강 회복 +0.5.', care: .5 },
   };
   const folk = [
-    ['eleanor','엘레노어','변경백',8,3,4,'brave','r0c0',true,'media/eleanor.webp'],
-    ['ottilie','오틸리에','옛 유모',1,4,10,'lullaby','r1c2',true,'media/ottilie.webp'],
-    ['johanna','요한나','젖어미',2,5,7,'warm','r1c0',true],
-    ['heinz','하인츠','경비대장',8,2,2,'northern','r0c0',true],
-    ['bruno','브루노','나무꾼',5,2,2,'logger','r0c1'],
-    ['liesel','리젤','요리사',1,6,3,'cook','r0c2'],
+    ['eleanor','엘레노어','변경백',8,3,4,'brave','r0c1',true,'media/eleanor.webp'],
+    ['ottilie','오틸리에','옛 유모',1,4,10,'lullaby','r1c3',true,'media/ottilie.webp'],
+    ['johanna','요한나','젖어미',2,5,7,'warm','r1c1',true],
+    ['heinz','하인츠','경비대장',8,2,2,'northern','r0c1',true],
+    ['bruno','브루노','나무꾼',5,2,2,'logger','r0c2'],
+    ['liesel','리젤','요리사',1,6,3,'cook','r0c3'],
     ['marta','마르타','직조공',2,5,5,'steady'],['klaus','클라우스','길 잃은 병사',6,3,2,'brave'],
     ['else','엘제','약초꾼',1,3,8,'frail'],['fritz','프리츠','대장장이',4,7,2,'smith'],
     ['anna','안나','양치기',3,4,5,'scout'],['otto','오토','짐꾼',7,2,2,'hungry'],
@@ -63,7 +63,7 @@
     ...[['봄의 종자',3,{food:20}],['가을의 창고',73,{wood:25}],['긴 밤의 등불',92,{health:6}]].map(([title,day,fx],i) => ({id:`season${i}`,kind:'season',day,title,text:'계절이 바뀌면 성 안의 일도 달라진다. 오늘 할 일을 미리 정해 두자.',choices:[choice('함께 준비한다',fx,{gold:8}),choice('지금은 아껴 둔다')]})),
   ].sort((a,b) => a.day-b.day);
   return {
-    version: 3, totalDays:120, dayMs:15000, seasons:['봄','여름','가을','겨울'],
+    version: 4, totalDays:120, dayMs:15000, seasons:['봄','여름','가을','겨울'],
     balance:{start:{food:45,wood:40,gold:110},popBase:6,storageBase:150,foodPerPerson:.65,
       woodUse:[1,.5,2,4],levelXP:[0,25,65,120,190],levelMult:[1,1.5,2],
       raidHP:2.0,raidBonus:[4,0,20,38],raidVariance:.45,raidDamage:.6,bossBonus:24,defenseScale:1.60,
@@ -79,7 +79,7 @@
     neighbors:{rosental:{name:'로젠탈 백작령',direction:'남 · 곡창 · 중립',envoy:'아델하이트',benefit:'계절마다 식량 +35'},eisenberg:{name:'아이젠베르크 남작령',direction:'동 · 광산 · 황후파',envoy:'디트리히',benefit:'무기 구매·제작 금화 20% 할인'},halden:{name:'할던 수도원령',direction:'서 · 교회',envoy:'수사 안셀름',benefit:'감찰 의심 −15'},berg:{name:'베르크 기사령',direction:'북서 · 국경 동지',envoy:'기사 루트거',benefit:'성문 방어 +25'}},
     items:{herb:{name:'말린 약초',cost:12,fx:{health:12}},blanket:{name:'모직 담요',cost:15,fx:{health:3,satisfaction:8}}},
     objectives:[['밭 건설·씨 뿌리기','피난민 맞이','율리안 첫 진찰'],['식량 100 비축','행상 거래','감찰 전 호적 결정'],['장작 100 비축','성문 Lv2 강화','가을 습격 2회 막기'],['장작 30 이상 유지','대족장 습격 막기','율리안 첫걸음']],
-    layout:[['gate','lumber','kitchen'],['parlor',null,'nursery'],[null,null,null],[null,null,null],[null,null,null],[null,null,null]],
+    layout:[[null,'gate','lumber','kitchen',null],[null,'parlor',null,'nursery',null],...Array.from({length:4},()=>Array(5).fill(null))],
     raids:[{day:18,name:'호르칸 척후대'},{day:69,name:'호르칸 약탈대'},{day:83,name:'호르칸 기마대'},{day:97,name:'설원의 기마대'},{day:109,name:'얼음강의 기마대'},{day:119,name:'호르칸 대족장',boss:true}],
     weapons:[{id:'knife',name:'철제 단검',power:3,cost:18,level:1},{id:'spear',name:'장창',power:6,cost:32,level:2},{id:'sword',name:'북부 장검',power:10,cost:50,level:3},{id:'bow',name:'사냥활',power:4,scout:true},{id:'axe',name:'산악 도끼',power:7,scout:true},{id:'relic',name:'얼음강의 검',power:12,scout:true}],
     scouts:[{id:'forest',name:'숲 가장자리',days:2,risk:.12,food:16,gold:12,weapon:'bow'},{id:'mountain',name:'산기슭',days:5,risk:.25,food:35,gold:30,weapon:'axe'},{id:'river',name:'얼음강',days:8,risk:.4,food:55,gold:55,weapon:'relic'}],
