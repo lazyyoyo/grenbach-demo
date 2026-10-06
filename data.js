@@ -1,7 +1,7 @@
 // 「그렌바흐 대공령」 데이터 — 엔진(index.html)과 분리.
 // 능력치: str(힘) · dex(손재주) · heart(마음), 1~10. 하루 = 엔진의 DAY_MS.
 window.KEEP = {
-  totalDays: 134, // 11월 1일 → 3월 15일(인구 대장 제출일)
+  totalDays: 134, // 겨울 1일 → 봄 1일(황후궁 감찰단 도착)
   start: { food: 30, wood: 30, gold: 80 },
   popBase: 6,
   rooms: {
