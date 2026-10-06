@@ -91,7 +91,6 @@ small,.hint{font-size:12px;color:var(--muted)}
 .world[data-season="2"]:after{content:'⌁ ⌁ ⌁';color:#eeb96d;position:absolute;top:30%;left:20%;letter-spacing:40px;animation:fall 5s infinite;pointer-events:none}
 .world[data-season="3"] .roof{background:#d8e7e4}
 .world[data-season="3"] .yard{border-top:5px solid #f1f5f4}
-.world.night{filter:brightness(.75)}
 .world.under-raid{box-shadow:inset 0 0 80px #9a281b;--sky:#512820!important}
 .world.burned .village{color:#bc6138}
 .cradle[data-stage="1"]:before{height:20px;width:15px;top:-17px}
@@ -252,9 +251,6 @@ kbd{font:10px monospace;border:1px solid #4b565a;padding:1px 3px;margin-left:3px
 .camera-controls button{width:32px;height:32px;padding:0;font-size:20px}
 .camera-controls output{width:40px;text-align:center;font-size:11px}
 .sleep-mark{display:none;position:absolute;top:-16px;right:-7px;color:#f9dfa0;font-size:12px;pointer-events:none}
-.sleeping .sleep-mark{display:block}
-.world.night .room:not(.empty) .light{background:radial-gradient(ellipse at 70% 50%,#ffd27928,transparent 75%)}
-.world.night .room:not(.empty) .light:after{content:'';position:absolute;right:12px;top:40px;width:9px;height:14px;border-radius:5px 5px 0 0;background:#ffd184;box-shadow:0 0 12px #ffbd69}
 .new-room{animation:room-appear 1s ease-out}
 @keyframes room-appear{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 
@@ -275,3 +271,33 @@ kbd{font:10px monospace;border:1px solid #4b565a;padding:1px 3px;margin-left:3px
 .fig.child{transform:scale(.68);transform-origin:bottom center;z-index:8;pointer-events:none}.fig.child .b{background:#d6ae5b!important}.fig.child .nm{font-size:16px;color:#fff2b7}.fig.visitor{opacity:.8}
 #record-text{display:block;width:100%;height:130px;background:#111;color:#eee;font-size:11px}#record-text[hidden]{display:none}.sheet .body>p{white-space:pre-line}
 @media(min-width:1600px){.app{grid-template-rows:112px minmax(0,1fr) 52px}.playfield{grid-template-columns:220px minmax(0,1fr) 320px}}
+.fig.hurt:after{content:"✚";color:#ef5858;position:absolute;top:-22px;left:4px}
+
+.citizen-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.citizen-card{display:flex;flex-direction:column;align-items:center;background:#293432;border:1px solid var(--mood);border-radius:8px;padding:8px;color:var(--mood);font-size:12px;min-width:0}.citizen-card img,.citizen-card .portrait{width:48px;height:48px;object-fit:cover;border-radius:50%}.badge{padding:2px 4px;background:#41674b;color:white;border-radius:4px}
+
+.map-nine{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}.map-nine button{font-size:11px;min-height:62px;padding:4px;background:#354740;color:#eee;border:1px solid #867957}.map-nine button:disabled{opacity:.6}
+
+/* v0.8: HUD and controls have their own rows; the castle alone pans. */
+[hidden]{display:none!important}
+.hud{grid-template-columns:minmax(240px,1fr) minmax(260px,1fr) minmax(280px,1fr);gap:16px}
+.hud>div{min-width:0}.julian-hud b{font-size:20px}.julian-hud span{font-size:12px}.julian-hud small{margin-top:4px;line-height:1.3}.julian-hud img{width:54px;height:54px}
+.estate-hud .meter{margin:3px 0}.estate-hud .meter .t{height:5px}#contest .t{position:relative}#contest .t:after{content:'';position:absolute;left:50%;top:0;height:100%;border-left:2px solid #fff}
+.hud .res{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:4px 0}.hud .res small{display:flex;flex-wrap:wrap;gap:2px 4px;line-height:1.3}.hud .res small>span{width:100%}.time-res>b{font-size:11px}
+.bottom{display:flex;gap:10px}.bottom .toolbar{flex-wrap:nowrap;gap:6px}.bottom .toolbar button{min-width:72px}.bottom .speed{display:flex;margin-left:auto}.bottom #progress{flex:0 1 auto;max-width:130px}
+.world{touch-action:none}.world .room .out,.world .room .tag,.world .room .cap,.world .fig .nm{font-size:11px}.rightcard{min-height:0}.rightcard progress{width:100%}.fig.visitor{cursor:pointer}
+@media(max-width:1000px){
+ .app{grid-template-rows:100px minmax(0,1fr) 44px}
+ .hud{grid-template-columns:minmax(215px,1fr) minmax(230px,1fr) minmax(245px,1fr);gap:8px;padding:6px 8px}
+ .julian-hud{gap:6px}.julian-hud img{width:38px;height:38px}.julian-hud b{font-size:16px}.julian-hud small,.julian-hud span,.hud .meter label{font-size:11px}
+ .playfield{grid-template-columns:minmax(0,1fr) 254px;gap:6px;padding:6px}.leftcard{display:none}.rightcard{padding:8px}.rightcard #next-task{font-size:11px;padding:6px;margin-bottom:8px}
+ .bottom{padding:4px 8px;gap:6px}.bottom .toolbar button{min-width:62px;font-size:12px;padding:4px}.bottom kbd{display:none}.bottom #progress{max-width:95px}.bottom .speed button{font-size:12px;padding:4px 8px}
+ .rightcard h3{font-size:14px}.rightcard .opt b{font-size:12px}.rightcard .opt span{font-size:11px}.sheet{max-height:90dvh}.sheet .body{padding:16px}.feedback{bottom:48px;max-width:70vw;font-size:11px}
+}
+
+.world.opening-storm{background:#172636}.opening-storm .mount{opacity:.25}#opening-scene{position:absolute;z-index:9;left:12px;bottom:58px;max-width:290px;max-height:calc(100% - 70px);overflow:auto;padding:14px;background:#101d2ce8;border:1px solid #72818c;color:#f4eddb;border-radius:8px}#opening-scene p{font-size:13px;line-height:1.5;margin:4px 0 10px}.opening-knight{display:grid;grid-template-columns:50px 80px;align-items:center;gap:8px;padding:12px;background:#253446;color:#f5ead4}.opening-knight b{grid-column:1/-1}.opening-knight img,#swaddle{width:80px;height:76px;object-fit:cover;border-radius:12px}.knight-shape{font-size:22px;color:#ee8989;display:block}.knight-shape i{display:block;width:23px;height:40px;background:#73838f;border-radius:8px;margin:0 auto;transform:rotate(13deg)}#swaddle{cursor:grab;touch-action:none}.opening-target{outline:3px solid #f5d681;box-shadow:0 0 24px #f5d681!important}@media(max-width:1000px){#opening-scene{left:6px;bottom:48px;max-width:220px;padding:8px}#opening-scene p{font-size:11px}.opening-knight img,#swaddle{width:60px;height:55px}}
+
+/* 844×390에서 첫 장면 카드가 위로 넘쳐 기사의 대사가 잘렸다 */
+@media (max-height:430px){#opening-scene{top:8px;bottom:auto;max-height:calc(100% - 16px);padding:10px}#opening-scene img{max-width:64px;max-height:64px}}
+
+/* 손님이 기다리면 패널 맨 위 목록을 눈에 띄게 */
+.guest-head{color:#f3c86b}.guest-head+button,.guest-head~button.queue-button{border-color:#d9a441}

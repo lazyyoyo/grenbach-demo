@@ -10,13 +10,13 @@
   const season=s=>Math.min(3,Math.floor(s.day/30));
   const room=(s,id)=>s.rooms[id];
   const slotOf=(s,type)=>Object.keys(s.rooms).find(id=>room(s,id)?.type===type);
-  const available=f=>!f.hurt&&!f.away;
+  const available=f=>!f.hurt&&!f.away&&!f.collapsed;
   const workers=(s,id)=>s.folk.filter(f=>f.room===id&&available(f));
   const trait=f=>K.traits[f.trait]||{};
   const maxHP=f=>100+(f.level-1)*8;
-  const capacity=(s,id)=>K.rooms[room(s,id)?.type]?.cap*(room(s,id)?.size||1)||0;
+  const capacity=(s,id)=>s.v08&&room(s,id)?.type==='dorm'?room(s,id).size*room(s,id).level*4:K.rooms[room(s,id)?.type]?.cap*(room(s,id)?.size||1)||0;
   const structures=(s,type)=>Object.values(s.rooms).filter(r=>r?.type===type);
-  const popCap=s=>B.popBase+structures(s,'dorm').reduce((a,r)=>a+K.rooms.dorm.pop*r.size*r.level,0);
+  const popCap=s=>s.v08?lodging(s).capacity+1:B.popBase+structures(s,'dorm').reduce((a,r)=>a+K.rooms.dorm.pop*r.size*r.level,0);
   const storageCap=s=>B.storageBase+structures(s,'storage').reduce((a,r)=>a+K.rooms.storage.storage*r.size*r.level,0);
   const weaponPower=(s,f)=>K.weapons.find(w=>w.id===f.weapon)?.power||0;
   const sum=(a,k)=>a.reduce((n,f)=>n+f[k],0);
@@ -38,20 +38,25 @@
   function unlocked(s,id){return /^r[0-5]c[0-4]$/.test(id)&&+id[1]<s.level+1&&+id[3]>=firstColumn(s)&&+id[3]<firstColumn(s)+columns(s);}
   function lodging(s){const capacity=structures(s,'dorm').reduce((n,r)=>n+r.size*r.level*4,0),population=s.folk.filter(f=>!s.p1||f.id!=='eleanor').length;return {capacity,population,ratio:population?Math.min(1,capacity/population):1};}
   function restore(saved,seed=1){try{const s=typeof saved==='string'?JSON.parse(saved):saved;return validSave(s)?clone(s):create(seed);}catch{return create(seed);}}
+  const aptitude=f=>['str','dex','heart','wis'].sort((a,b)=>f[b]-f[a])[0];
+  const grade=f=>{const n=f.str+f.dex+f.heart+f.wis;return n>=28?'S':n>=22?'A':n>=16?'B':'C';};
+  const suited=(s,f)=>K.rooms[room(s,f.room)?.type]?.stat===aptitude(f);
   function rate(s,id){
     const r=room(s,id),def=K.rooms[r?.type];
     if(!def?.res||r.fire||(r.type==='field'&&season(s)>1))return 0;
-    return workers(s,id).reduce((n,f)=>n+f[def.stat]*satisfactionMult(f.satisfaction)*(trait(f).room===r.type?trait(f).production:1)*(s.p1&&s.teacher===f.id?.5:1),0)*B.levelMult[r.level-1];
+    return workers(s,id).reduce((n,f)=>n+f[def.stat]*(s.v08&&suited(s,f)?1.5:1)*(s.v08&&f.hp<maxHP(f)*.3?.5:1)*satisfactionMult(f.satisfaction)*(trait(f).room===r.type?trait(f).production:1)*(s.p1&&s.teacher===f.id?.5:1),0)*B.levelMult[r.level-1];
   }
   function daily(s){
     const out={food:-s.folk.reduce((n,f)=>n+B.foodPerPerson+(trait(f).food||0),0),wood:-B.woodUse[season(s)]*(s.day<s.blizzardUntil?2:1),gold:0};
     for(const id of Object.keys(s.rooms)){const def=K.rooms[room(s,id)?.type];if(def?.res)out[def.res]+=rate(s,id);}
-    out.gold=s.folk.length*.18*averageSatisfaction(s)/100;
+    out.gold=s.v08&&!s.opened.gold?0:s.folk.length*.18*averageSatisfaction(s)/100;
     out.sus=(s.p1?.2*(1+s.julian.age/8):.5+(s.capital?.suspicion||0))-workers(s,slotOf(s,'parlor')).reduce((n,f)=>n+f.heart*.08-(trait(f).suspicion||0),0);
+    if(s.v08)out.sus=s.opened.suspicion?-sum(workers(s,slotOf(s,'parlor')),'heart')*.02:0;
     return out;
   }
   function price(s,a){
     const r=room(s,a.slot),def=K.rooms[r?.type];
+    if(s.v08&&a.type==='gift')return {gold:20};if(s.v08&&a.type==='envoy')return {};
     if(a.type==='tool')return {gold:a.tool==='book'?35:25};
     if(a.type==='promote')return {gold:40};
     if(a.type==='build')return {gold:(K.rooms[a.room]?.cost||0)+15*(s.built[a.room]||0)};
@@ -60,6 +65,7 @@
     if(a.type==='craft')return {gold:Math.ceil((K.weapons.find(w=>w.id===a.weapon)?.cost||0)*(s.neighbors.eisenberg>=70?.8:1)),wood:5};
     if(a.type==='repair')return {wood:12,gold:8};
     if(a.type==='wall')return {wood:30,gold:40*s.wallLevel};
+    if(s.v08&&a.type==='registry')return {gold:20};
     if(a.type==='registry')return s.julian.registry?{gold:80}:{};
     if(a.type==='checkup')return {gold:8};
     if(a.type==='scout')return {food:K.scouts.find(d=>d.id===a.destination)?.days*2||0};
@@ -70,11 +76,13 @@
     if(a.type==='extinguish')return {wood:4};
     return {};
   }
-  const affordable=(s,cost)=>Object.entries(cost).every(([k,n])=>s.res[k]>=n);
+  const affordable=(s,cost)=>Object.entries(cost).every(([k,n])=>(k!=='gold'||!s.v08||s.opened.gold)&&s.res[k]>=n);
   function pay(s,cost){for(const [k,n] of Object.entries(cost))s.res[k]-=n;}
-  function gainXP(s,n){s.xp+=n;const old=s.level;while(s.level<5&&s.xp>=B.levelXP[s.level])s.level++;if(old!==s.level){s.res.gold+=30+s.level*10;log(s,`확장 보상 금화 +${30+s.level*10} · 영지 Lv${s.level} · ${s.level+1}층 개방`);s.notices.push({kind:'level',level:s.level});}}
+  function gainXP(s,n){s.xp+=n;const old=s.level;while(s.level<5&&s.xp>=B.levelXP[s.level])s.level++;if(old!==s.level){if(!s.v08||s.opened.gold)s.res.gold+=30+s.level*10;if(s.v08)reputation(s,3);log(s,`확장 보상 금화 +${30+s.level*10} · 영지 Lv${s.level} · ${s.level+1}층 개방`);s.notices.push({kind:'level',level:s.level});}}
   function damage(s,id,n){
-    const f=s.folk.find(f=>f.id===id);if(!f||f.hurt)return;
+    const f=s.folk.find(f=>f.id===id);if(!f||f.hurt||n<=0)return;
+    // 엘레노어는 플레이어 자신이라 죽지 않는다(쓰러지기만 한다) — v0.8 체력 규칙에서 이 보호가 빠져 있었다
+    if(s.v08){if(f.collapsed&&f.hero)return;if(f.collapsed){s.graveyard.push({id:f.id,name:f.name,year:s.year,day:s.day});s.folk=s.folk.filter(p=>p!==f);s.folk.forEach(p=>satisfaction(s,p,-12,`${f.name} 사망`));if(s.teacher===f.id)s.teacher=null;return;}f.hp=Math.max(0,f.hp-n*(trait(f).damage||1));if(f.hp===0){f.collapsed=true;f.room=slotOf(s,'dorm')||null;log(s,`${f.name} 쓰러짐 · 체력 50%까지 휴식`);}return;}
     f.hp-=n*(trait(f).damage||1);
     if(f.hp>0)return;
     if(f.hero||f.named){f.hurt=f.hero?7:14;f.hp=1;f.room=null;log(s,`${f.name} ${f.hurt}일 부상`);}
@@ -89,6 +97,7 @@
     if(a.type==='restart')return null;
     if(a.type==='continue')return '여기까지가 1년 프로토입니다';
     if(s.status!=='playing')return '결산을 먼저 확인하세요';
+    if(s.v08&&s.prologue){if(a.type==='openGate')return s.prologue==='gate'?null:'이미 문을 열었습니다';if(a.type==='placeChild')return s.prologue==='cradle'&&a.slot===slotOf(s,'nursery')?null:'아기를 요람실에 놓으세요';return '성문의 기사를 맞이하고 아기를 요람실에 놓으세요';}
     if(s.p1){const error=validateP1(s,a);if(error!==undefined)return error;}
     if(a.type==='assign'){
       if(!f||!available(f))return '부상 또는 파견 중입니다';
@@ -115,9 +124,10 @@
     }else if(a.type==='extinguish'){
       if(!r?.fire)return '불이 나지 않았습니다';
     }else if(a.type==='choice'){
-      const e=eventFor(s,s.pending),c=e?.choices[a.index];
+      const e=eventFor(s,a.guest||s.pending),c=e?.choices[a.index];
+      if(a.guest&&!s.guests.some(g=>g.id===a.guest))return '이미 떠난 손님입니다';
       if(!c)return '사건 선택지가 없습니다';
-      if(c.recruit&&(!nextCandidate(s)||s.folk.length>=popCap(s)))return '숙소가 부족합니다';
+      if(c.recruit&&(!nextCandidate(s)||s.folk.length>=popCap(s)))return `숙소 ${s.folk.length}/${popCap(s)} · 1칸 더 필요`;
       if(!affordable(s,c.cost))return '비용이 부족합니다';return null;
     }else if(a.type==='scout'){
       if(!K.scouts.some(d=>d.id===a.destination)||!Array.isArray(a.ids)||a.ids.length<1||a.ids.length>3||new Set(a.ids).size!==a.ids.length)return '1~3명을 선택하세요';
@@ -145,8 +155,8 @@
   function effects(s,fx){
     for(const [key,n] of Object.entries(fx)){
       if(key in s.res)s.res[key]+=n;
-      else if(key==='sus')s.sus=clamp(s.sus+n);
-      else if(key==='health'||key==='bond')s.julian[key]=clamp(s.julian[key]+n);
+      else if(key==='sus'&&(!s.v08||s.opened.suspicion))s.sus=clamp(s.sus+n);
+      else if(key==='health'||key==='bond'&&(!s.v08||s.opened.bond))s.julian[key]=clamp(s.julian[key]+n);
       else if(key==='satisfaction')s.folk.forEach(f=>satisfaction(s,f,n,'사건 선택'));
       else if(key==='xp')gainXP(s,n);
     }
@@ -157,6 +167,8 @@
     pay(s,price(s,a));
     if(s.p1)trackAction(s,a);
     switch(a.type){
+      case 'openGate':s.prologue='cradle';break;
+      case 'placeChild':s.prologue=null;s.julian.location=a.slot;s.notices.push({kind:'toast',text:'이 아이를 황제로. 들키면 모두 죽습니다.'});s.notices.push({kind:'unlock',title:'율리안이 0세가 됐습니다. 이제 지키기를 할 수 있습니다',text:'식량·장작과 영지민 민심, 율리안 건강을 지키세요. 마음 높은 사람을 요람실에 배치합니다.'});break;
       case 'recall':s.julian.location='residence';s.julian.dangerDays=0;break;
       case 'teacher':if(s.teacher)s.teacherChanges++;s.teacher=a.id;break;
       case 'tool':s.tools[a.tool]=true;break;
@@ -179,7 +191,7 @@
       }
       case 'extinguish':r.fire=0;log(s,'불길을 잡았다.');break;
       case 'choice':{
-        const e=eventFor(s,s.pending),c=e.choices[a.index];pay(s,c.cost);if(c.registry)register(s,c.registry);else effects(s,c.fx);if(s.p1&&e.kind==='search'&&(a.index===1||random(s)>.85)){s.pending=null;rollback(s,'수색 중 피신 실패로 율리안을 빼앗겼다');break;}if(c.recruit)recruit(s,nextCandidate(s));if(c.neighbor)favor(s,c.neighbor,c.favor);if(e.kind==='merchant'&&a.index<2)s.metrics.trade++;s.pending=null;gainXP(s,2);log(s,`${e.title} · ${c.label}`);break;
+        const e=eventFor(s,a.guest||s.pending),c=e.choices[a.index];pay(s,c.cost);if(s.v08&&e.kind==='leopold'){s.guests=s.guests.filter(g=>g.id!==a.guest);if(a.index===0){s.leopold.stayUntil=s.elapsedDays+5;log(s,'레오폴트가 5일간 머문다');}else refuseLeopold(s);break;}if(c.registry)register(s,c.registry);else effects(s,c.fx);if(s.p1&&e.kind==='search'&&(a.index===1||random(s)>.85)){s.pending=null;rollback(s,'수색 중 피신 실패로 율리안을 빼앗겼다');break;}if(c.recruit){recruit(s,nextCandidate(s));if(s.v08)reputation(s,2);}if(s.v08&&a.guest){if(!c.recruit)reputation(s,a.index===e.choices.length-1?-2:2);if(s.opened.suspicion&&['yard',slotOf(s,'parlor')].includes(s.julian.location))s.sus=clamp(s.sus+5);}if(c.neighbor)favor(s,c.neighbor,c.favor);if(e.kind==='merchant'&&a.index<2)s.metrics.trade++;if(a.guest)s.guests=s.guests.filter(g=>g.id!==a.guest);else s.pending=null;gainXP(s,2);log(s,`${e.title} · ${c.label}`);break;
       }
       case 'scout':{
         const dest=K.scouts.find(d=>d.id===a.destination),id=`${s.year}-${s.day}-${s.expeditions.length}`;
@@ -193,7 +205,7 @@
       case 'retry':{const failures=s.failures,attempted=s.elapsedDays;const restored=clone(s.checkpoint);restored.checkpoint=clone(s.checkpoint);restored.failures=failures;if(s.p1){restored.telemetry=clone(s.telemetry);restored.telemetry.recoveries++;}restored.attemptedDays=(s.attemptedDays||0)+attempted-restored.elapsedDays;Object.keys(s).forEach(k=>delete s[k]);Object.assign(s,restored);break;}
       case 'restart':{const seed=s.seed,legacy=!s.p1;Object.keys(s).forEach(k=>delete s[k]);Object.assign(s,create(seed,legacy));break;}
       case 'continue':s.year++;s.day=0;s.status='playing';s.yearStartDeaths=s.graveyard.length;s.notices.push({kind:'season',season:0});s.checkpoint=snapshot(s);break;
-      default:performExtra(s,a);
+      default:if(s.v08&&['registry','study','returnStudy','rescue'].includes(a.type))performTravel(s,a);else if(s.v08&&['gift','envoy','showJulian'].includes(a.type))performDiplomacy(s,a);else performExtra(s,a);
     }
     checkGoals(s);
     for(const k of ['food','wood'])s.res[k]=clamp(s.res[k],0,storageCap(s));
@@ -202,22 +214,25 @@
   function rollback(s,reason){
     s.status='gameOver';s.failures++;if(s.p1)s.telemetry.failures++;s.lastFailure=reason;s.failureAnalysis=[reason,`성문 HP ${Math.ceil(s.gateHP)}/${gateMax(s)} · 요람실 ${workers(s,slotOf(s,'nursery')).length}명 · 요람 방어 ${Math.round(defense(s,slotOf(s,'nursery')))}`,`의심 ${Math.round(s.sus)} · 응접실이 비어 있던 날 ${s.metrics.emptyParlor}일 · 건강 ${Math.round(s.julian.health)}`, ...s.warnings.slice(-4).map(w=>`${w.day}일: ${w.text}`)];s.notices=[];return s;
   }
-  function failure(s){return !s.p1&&s.sus>=100?'의심이 100에 닿아 율리안을 빼앗겼다':s.julian.health<=0?'율리안의 건강이 무너져 보호권을 잃었다':null;}
+  function failure(s){if(s.v08){const morale=averageSatisfaction(s);if(morale<=0)return '내부 반란 · 민심이 0이 되었습니다';if(morale<10){s.rebellionAt??=s.elapsedDays+3;if(s.elapsedDays>=s.rebellionAt)return '내부 반란 · 불온한 민심을 3일 안에 회복하지 못했습니다';}else s.rebellionAt=null;if(s.julian.health<=0||s.criticalAt!=null){s.criticalAt??=s.elapsedDays+3;if(workers(s,slotOf(s,'nursery')).some(f=>f.heart>=6)){s.julian.health=20;s.criticalAt=null;}else if(s.elapsedDays>=s.criticalAt)return '율리안 사망 · 위독한 3일 동안 돌봄을 받지 못했습니다';}return null;}return !s.p1&&s.sus>=100?'의심이 100에 닿아 율리안을 빼앗겼다':s.julian.health<=0?'율리안의 건강이 무너져 보호권을 잃었다':null;}
   function startRaid(s,def){
     const power=raidPower(s,def)*(1-B.raidVariance/2+random(s)*B.raidVariance);
     const gate=slotOf(s,'gate'),nursery=slotOf(s,'nursery');
     const path=[gate,...Object.keys(s.rooms).filter(id=>s.rooms[id]?.type&&id!==gate&&id!==nursery),nursery];
+    if(s.v08){path.splice(path.indexOf(nursery),1);path.push(nursery,s.residence.slot);}
     s.raid={name:def.name,power,hp:power*B.raidHP,max:power*B.raidHP,idx:0,path,round:0,history:[],boss:!!def.boss};
     if(defense(s,gate)<power||(s.wallLevel===1&&power>60&&s.neighbors.berg<70)){s.metrics.burned=(s.metrics.burned||0)+1;s.metrics.raidDamage++;log(s,'성 밖 집이 불탔다 · 부족한 수비 또는 미강화 성벽으로 외곽 마을이 노출됐다');}
-    log(s,`${def.name} 도착`);
+    if(s.v08){s.julian.location=slotOf(s,'dorm')||'residence';for(const f of s.folk)if(f.collapsed)f.room=slotOf(s,'dorm')||null;}log(s,`${def.name} 도착`);
   }
   function raidRound(s){
-    const rd=s.raid,id=rd.path[rd.idx],r=room(s,id),defenders=workers(s,id),def=defense(s,id);rd.round++;
+    const rd=s.raid,id=rd.path[rd.idx],r=room(s,id),defenders=workers(s,id),def=s.v08&&id!==slotOf(s,'gate')?sum(defenders,'str'):defense(s,id);rd.round++;
+    if(s.v08&&id===s.residence.slot){rd.flagMs??=0;// 영주관은 싸우는 방이 아니라서 절반만 막는다 — 전원 미배치여도 엘레노어 혼자 습격대를 이겨 깃발 함락이 일어나지 않았다
+    rd.hp=Math.max(0,rd.hp-sum(s.folk.filter(f=>f.id==='eleanor'&&available(f)&&!f.room),'str')*.5);if(rd.hp===0){s.raidsWon++;reputation(s,5);s.raid=null;}return s;}
     rd.hp=Math.max(0,rd.hp-def);rd.history.unshift(`${rd.round}R · ${K.rooms[r.type].name} 방어 ${Math.round(def)} → 습격대 HP −${Math.round(def)}`);
-    if(rd.hp<=0){s.raidsWon++;s.res.gold+=18;if(rd.boss)s.metrics.boss=true;gainXP(s,10);log(s,'습격을 막았다.');s.raid=null;checkGoals(s);return s;}
-    if(r.type==='gate'&&s.gateHP>0){const hit=rd.power*.8;s.gateHP=Math.max(0,s.gateHP-hit);rd.history.unshift(`${rd.round}R · 성문 HP −${Math.round(hit)} · 내부 피해 0`);if(s.gateHP>0)return s;rd.idx++;s.metrics.raidDamage++;s.metrics.burned=(s.metrics.burned||0)+1;log(s,'성문 돌파 · 성 밖 집에 불이 붙었다');return s;}
+    if(rd.hp<=0){s.raidsWon++;if(s.v08){unlock(s,'reputation','첫 격퇴 · 명성이 열렸습니다');reputation(s,5);}if(!s.v08||s.opened.gold)s.res.gold+=18;if(rd.boss)s.metrics.boss=true;gainXP(s,10);log(s,'습격을 막았다.');s.raid=null;checkGoals(s);return s;}
+    if(r.type==='gate'&&s.gateHP>0){const hit=rd.power*.8;s.gateHP=Math.max(0,s.gateHP-hit);rd.history.unshift(`${rd.round}R · 성문 HP −${Math.round(hit)} · 내부 피해 0`);if(s.gateHP>0)return s;rd.idx++;if(s.v08)reputation(s,-5);s.metrics.raidDamage++;s.metrics.burned=(s.metrics.burned||0)+1;log(s,'성문 돌파 · 성 밖 집에 불이 붙었다');return s;}
     for(const f of [...defenders])damage(s,f.id,rd.power*.8/Math.max(1,defenders.length));
-    if(r.type==='nursery')return rollback(s,`요람실 방어 ${Math.round(def)} vs 습격 잔여 ${Math.round(rd.hp)} — 율리안을 빼앗겼다`);
+    if(!s.v08&&r.type==='nursery')return rollback(s,`요람실 방어 ${Math.round(def)} vs 습격 잔여 ${Math.round(rd.hp)} — 율리안을 빼앗겼다`);
     const res=K.rooms[r.type].res||'gold';s.res[res]=Math.max(0,s.res[res]-12);s.metrics.raidDamage++;rd.history.unshift(`${K.rooms[r.type].name} 교전 · ${res} 약탈 −12`);rd.idx++;return s;
   }
   function returnScouts(s){
@@ -233,12 +248,12 @@
     }
     s.expeditions=s.expeditions.filter(e=>e.returnAt>s.elapsedDays);
   }
-  function step(state,actions=[]){
+  function step(state,actions=[],combatMs=1200){
     let s=clone(state);for(const a of actions)perform(s,a);
     if(s.status==='gameOver')return s;
     const lost=failure(s);if(lost)return rollback(s,lost);
-    if(s.status!=='playing'||s.pending)return s;
-    if(s.raid)return raidRound(s);
+    if(s.status!=='playing'||s.pending||s.prologue)return s;
+    if(s.raid){raidRound(s);if(s.v08)tickFlag(s,combatMs);return s;}
     // 결산/계절 경계는 전날의 사건과 습격이 끝난 다음 확정한다.
     if(s.day>0&&s.day%30===0&&s.checkpoint.day!==s.day){
       if(s.p1)return boundaryP1(s);
@@ -254,43 +269,52 @@
     }
     const d=daily(s);if(s.p1)tickP1(s);s.rush={};
     for(const key of ['food','wood','gold'])s.res[key]+=d[key];
-    const hungry=s.res.food<0,cold=s.res.wood<0;
+    const hungry=s.res.food<0,cold=s.res.wood<0;if(s.v08&&hungry)reputation(s,-1);
     s.sus=clamp(s.sus+d.sus);
     if(!workers(s,slotOf(s,'parlor')).length)s.metrics.emptyParlor++;
     const care=workers(s,slotOf(s,'nursery'));
-    s.julian.health=clamp(s.julian.health+(care.length?sum(care,'heart')*.12+care.reduce((n,f)=>n+(trait(f).care||0),0):-B.healthWithoutCare)-(hungry?B.starvationDamage:0)-(cold?B.coldDamage:0)+(s.julian.registry==='heinz'&&Object.entries(s.rooms).some(([id,r])=>r?.type==='barracks'&&adjacent(id,slotOf(s,'nursery')))?.5:0));
-    s.julian.bond=clamp(s.julian.bond+care.reduce((n,f)=>n+f.heart*.025*(trait(f).bond||1)+(f.hero?.3:0),0)*(K.registries[s.julian.registry]?.bond||1)-(care.length?0:.3));
+    if(!s.v08||s.criticalAt==null)s.julian.health=clamp(s.julian.health+(care.length?sum(care,'heart')*.12+care.reduce((n,f)=>n+(trait(f).care||0),0):-B.healthWithoutCare)-(hungry?B.starvationDamage:0)-(cold?B.coldDamage:0)+(s.julian.registry==='heinz'&&Object.entries(s.rooms).some(([id,r])=>r?.type==='barracks'&&adjacent(id,slotOf(s,'nursery')))?.5:0));
+    if(!s.v08||s.opened.bond&&!s.julian.abroad&&!s.julian.kidnapped)s.julian.bond=clamp(s.julian.bond+care.reduce((n,f)=>n+f.heart*.025*(trait(f).bond||1)+(f.hero?.3:0),0)*(K.registries[s.julian.registry]?.bond||1)-(care.length?0:.3));
     for(const f of [...s.folk]){
       if(f.hurt){f.hurt--;if(!f.hurt)f.hp=maxHP(f);continue;}
       if(f.away)continue;
+      if(s.v08){if(room(s,f.room)?.type==='nursery'){f.careDays=(f.careDays||0)+1;if(f.careDays>=3)f.knowsJulian=true;}else f.careDays=0;if(cold)damage(s,f.id,3*(trait(f).cold||1));if(!s.folk.includes(f))continue;if(s.res.food>0){f.hp=clamp(f.hp+(room(s,f.room)?.type==='dorm'?8:2),0,maxHP(f));if(f.collapsed&&f.hp>=maxHP(f)*.5)f.collapsed=false;}if(f.collapsed)continue;}
       if(hungry||cold)satisfaction(s,f,-3,hungry?'식량 부족':'추위');
+      else if(s.v08){const stat=K.rooms[room(s,f.room)?.type]?.stat;satisfaction(s,f,.1,'식량 공급');if(stat&&f[stat]>=Math.max(f.str,f.dex,f.heart,f.wis))satisfaction(s,f,.2,'배치 적성');}
       else {const suited=K.rooms[room(s,f.room)?.type]?.stat;const fit=suited&&f[suited]>=Math.max(f.str,f.dex,f.heart);satisfaction(s,f,fit?.2:0,'배치 적성');satisfaction(s,f,(!f.room||room(s,f.room)?.type==='dorm'?.8:.3)*lodging(s).ratio,lodging(s).ratio===1?'숙소 휴식':'숙소 부족 · 회복 감소');}
-      if(hungry||cold)damage(s,f.id,(hungry?3:0)+(cold?3*(trait(f).cold||1):0));
-      else f.hp=clamp(f.hp+(!f.room||room(s,f.room)?.type==='dorm'?6:3)*lodging(s).ratio,0,maxHP(f));
+      if(!s.v08&&(hungry||cold))damage(s,f.id,(hungry?3:0)+(cold?3*(trait(f).cold||1):0));
+      else if(!s.v08)f.hp=clamp(f.hp+(!f.room||room(s,f.room)?.type==='dorm'?6:3)*lodging(s).ratio,0,maxHP(f));
       const def=K.rooms[room(s,f.room)?.type];
       if(def?.stat&&!room(s,f.room).fire&&!(room(s,f.room).type==='field'&&season(s)>1)){
         f.xp++;f.work[def.stat]++;if(f.work[def.stat]%10===0)f[def.stat]=Math.min(10,f[def.stat]+(room(s,f.room).type==='barracks'?2:1));
-        const lv=Math.min(10,1+Math.floor(f.xp/10));if(lv>f.level){f.hp+=8*(lv-f.level);f.level=lv;}
+        const lv=Math.min(s.v08?5:10,1+Math.floor(f.xp/10));if(lv>f.level){f.hp+=8*(lv-f.level);f.level=lv;if(s.v08)f.hp=maxHP(f);}
       }
     }
-    for(const [id,r] of Object.entries(s.rooms))if(r?.fire){workers(s,id).forEach(f=>damage(s,f.id,8));r.fire--;}
-    s.day++;s.elapsedDays++;gainXP(s,1);tickEconomy(s);returnScouts(s);
+    if(s.v08)for(const f of [...s.folk])if(room(s,f.room)?.type==='forge'&&!f.away&&random(s)<.05)damage(s,f.id,8);
+    for(const [id,r] of Object.entries(s.rooms))if(r?.fire){(s.v08?s.folk.filter(f=>f.room===id&&!f.away):workers(s,id)).forEach(f=>damage(s,f.id,8));r.fire--;}
+    s.day++;s.elapsedDays++;if(s.v08)unlockValues(s);gainXP(s,1);tickEconomy(s);returnScouts(s);if(s.v08)tickKidnap(s);
     const stage=Math.min(4,Math.floor(s.day/30));if(!s.p1&&stage!==s.julian.growth){s.julian.growth=stage;s.julian.timeline.push({day:s.day,title:K.growth[stage]});}
     checkGoals(s);expireQueue(s);warnings(s);
     for(const key of ['food','wood'])s.res[key]=clamp(s.res[key],0,storageCap(s));
     if(s.day>=91&&s.day<118&&random(s)<.14){s.blizzardUntil=s.day+3;log(s,'눈보라 · 사흘 동안 장작 소모 두 배');}
     if(!s.p1&&s.day%30===0){const i=s.day/30-1,rec={year:s.year,season:i,title:K.milestones[i][0],text:K.milestones[i][1]};s.records.push(rec);s.notices.push({kind:'record',...rec});}
     const e=dayEvent(s);if(e)arrive(s,e);
-    const rd=K.raids.find(r=>r.day===s.day);if(rd)startRaid(s,rd);
+    const rd=K.raids.find(r=>r.day===s.day);if(rd&&(!s.v08||s.year>1||rd.day>=60))startRaid(s,rd);
     if(s.p1)threatP1(s);const reason=failure(s);return reason?rollback(s,reason):s;
   }
+  function tickFlag(s,ms){if(s.status!=='playing'||!s.raid||s.raid.path[s.raid.idx]!==s.residence.slot)return;s.raid.flagMs=(s.raid.flagMs||0)+Math.max(0,ms);if(s.raid.flagMs>=10000)rollback(s,s.raid.search?'율리안 탈취 · 황궁 수색대에 패배했습니다':'성 함락 · 영주관 깃발을 10초간 빼앗겼습니다');}
+  function flagTime(state,ms){const s=clone(state);tickFlag(s,ms);return s;}
   function averageSatisfaction(s){return s.folk.length?s.folk.reduce((n,f)=>n+f.satisfaction,0)/s.folk.length:0;}
   const satisfactionMult=n=>(.8+n/250)*(n<40?.7:1);
   function satisfaction(s,f,n,text){if(!n)return;f.satisfaction=clamp(f.satisfaction+n);const last=f.reasons.at(-1);if(last?.text===text&&last.day===s.day)last.value+=n;else f.reasons.push({text,value:n,day:s.day});f.reasons=f.reasons.slice(-8);}
   function gateMax(s){return 140+(room(s,slotOf(s,'gate')).level-1)*60+(s.wallLevel-1)*40;}
-  function defense(s,id){const r=room(s,id);if(!r)return 0;let n=workers(s,id).reduce((n,f)=>n+f.str+weaponPower(s,f)+(trait(f).defense||0),0)*B.levelMult[r.level-1]*B.defenseScale;if(r.type==='gate')n+=6*r.level+workers(s,slotOf(s,'barracks')).reduce((n,f)=>n+(f.str+weaponPower(s,f))*.5,0)+(s.neighbors.berg>=70?25:0);return n;}
-  function raidPower(s,def){return (s.level*12+B.raidBonus[Math.min(3,Math.floor(def.day/30))]+(def.boss?B.bossBonus:0))*(s.p1?.82+s.isolde/220:1+B.yearScale*(s.year-1));}
-  function forecast(s){const next=K.raids.find(r=>r.day>s.day);return next?{...next,days:next.day-s.day,power:raidPower(s,next),defense:defense(s,slotOf(s,'gate'))}:null;}
+  function defense(s,id){const r=room(s,id);if(!r)return 0;let n=workers(s,id).reduce((n,f)=>n+f.str+weaponPower(s,f)+(trait(f).defense||0),0)*B.levelMult[r.level-1]*B.defenseScale;if(r.type==='gate')n+=6*r.level+workers(s,slotOf(s,'barracks')).reduce((n,f)=>n+(f.str+weaponPower(s,f))*.5,0)+(s.v08?reinforcements(s):s.neighbors.berg>=70?25:0);return n;}
+  function reinforcements(s){return s.v08?Object.entries(B.v08.reinforcements).reduce((n,[id,power])=>n+(s.territories[id]?.flag==='north'&&(id!=='berg'||s.territories[id].shown)?power:0),0):0;}
+  function isoldeFunding(s){return s.v08?B.v08.southBase+(1-support(s)/100)*B.v08.southScale:1;}
+  // 자객은 확률 대신 의심 임계값으로 판정하므로, 위험한 체류지에서는 판정 의심만 두 배로 센다.
+  function assassinSuspicion(s){const t=s.territories[s.julian.abroad?.territory];return s.sus*(t&&t.favor<80?B.v08.abroadAssassin:1);}
+  function raidPower(s,def){const tuning=s.v08?B.v08:B;return (s.level*12+tuning.raidBonus[Math.min(3,Math.floor(def.day/30))]+(def.boss?tuning.bossBonus:0))*(s.v08?(B.v08.raidBase+(s.year-1)*B.v08.raidYear)*isoldeFunding(s):s.p1?.82+s.isolde/220:1+B.yearScale*(s.year-1));}
+  function forecast(s){const next=K.raids.find(r=>r.day>s.day&&(!s.v08||s.year>1||r.day>=60));return next?{...next,days:next.day-s.day,power:raidPower(s,next),defense:defense(s,slotOf(s,'gate')),funding:isoldeFunding(s),reinforcements:reinforcements(s)}:null;}
   function risks(s){const a=[],next=forecast(s);if(!workers(s,slotOf(s,'nursery')).length)a.push({text:'요람실이 비었습니다 — 돌볼 사람을 배치하세요',slot:slotOf(s,'nursery')});if(s.sus>=80)a.push({text:'의심 80 이상 — 응접실에 마음 높은 사람을 배치하세요',slot:slotOf(s,'parlor')});if(s.julian.health<30)a.push({text:'율리안 건강 30 미만 — 진찰·약초·자장가가 필요합니다',slot:slotOf(s,'nursery')});if(next&&next.days<=3)a.push({text:`습격 D-${next.days} · 예상 ${Math.round(next.power)} vs 성문 방어 ${Math.round(next.defense)}`,slot:slotOf(s,'gate')});return a;}
   function warnings(s){for(const w of risks(s)){if(!s.warnings.some(x=>x.day===s.day&&x.text===w.text))s.warnings.push({day:s.day,...w});}s.warnings=s.warnings.slice(-12);}
   function craftDays(s,id){const dex=workers(s,slotOf(s,'forge')).reduce((n,f)=>n+f.dex*(f.trait==='smith'?1.15:1),0);return Math.max(1,({knife:2,spear:3,sword:5}[id]||99)-Math.floor(dex/10));}
@@ -345,7 +369,7 @@
     const c=s.crafts[0];if(c&&room(s,c.slot)&&!room(s,c.slot).fire&&workers(s,c.slot).length){c.remaining--;if(c.remaining<=0){s.inventory.push(c.weapon);s.crafts.shift();log(s,`${K.weapons.find(w=>w.id===c.weapon).name} 제작 완료 → 가방`);}}
     s.visitors=s.visitors.filter(v=>v.until>=s.day);
   }
-  function returnMission(s,ex){
+  function returnMission(s,ex){if(s.v08&&ex.kind==='rescue'){const people=ex.ids.map(id=>s.folk.find(f=>f.id===id)).filter(Boolean);for(const f of people){f.away=null;f.room=ex.rooms[f.id];}if(s.julian.kidnapped){if(random(s)<ex.chance){s.julian.kidnapped=null;s.julian.abroad=null;s.julian.location='residence';s.sus=clamp(s.sus+20);log(s,'구출 성공 · 의심 +20');}else rollback(s,'율리안 탈취 · 구출대가 실패했습니다');}return;}if(s.v08&&ex.kind==='diplomat'){const f=s.folk.find(f=>f.id===ex.ids[0]);if(f){f.away=null;f.room=ex.room;changeFavor(s,ex.neighbor,(f.heart+f.wis)*1.5,'사절');}s.territories[ex.neighbor].visited=true;log(s,s.territories[ex.neighbor].name+' 사절 귀환 · 숨은 사정 공개');return;}
     const people=ex.ids.map(id=>s.folk.find(f=>f.id===id)).filter(Boolean);people.forEach(f=>f.away=null);
     if(ex.kind==='caravan'){const attacked=random(s)<.2;s.res.gold+=Math.round(ex.reward*(attacked?.6:1));if(attacked)people.forEach(f=>damage(s,f.id,35));log(s,`수도 행상 귀환 · 금화 +${Math.round(ex.reward*(attacked?.6:1))}${attacked?' · 약탈로 수익 40% 손실':''}`);}
     else {const heart=Math.max(0,...people.map(f=>f.heart)),id=`envoy-${s.elapsedDays}-${ex.neighbor}`;s.events[id]={id,kind:'neighbor',title:K.neighbors[ex.neighbor].name+' 사절 귀환',text:'이웃은 다음 겨울을 함께 준비하자고 합니다.',bearer:{name:people[0]?.name||'사절',role:'귀환 사절'},choices:[{label:'우호적으로 설득한다',cost:{},fx:{},neighbor:ex.neighbor,favor:heart>=7?20:10},{label:'선물을 더 보낸다',cost:{gold:10},fx:{},neighbor:ex.neighbor,favor:25},{label:'안부만 전한다',cost:{},fx:{},neighbor:ex.neighbor,favor:5}]};s.queue.push({id,until:s.day+3});}
@@ -374,13 +398,19 @@
     if([16,42,75,102].includes(day)){const id=Object.keys(K.neighbors)[[16,42,75,102].indexOf(day)],n=K.neighbors[id];e={id:`neighbor-${id}`,kind:'neighbor',day,title:n.name+'의 부탁',text:'이웃에서 함께 쓸 비축 식량을 구합니다.',bearer:{name:n.envoy,role:n.name+' 사절',age:38,origin:n.direction,str:3,dex:4,heart:7},choices:[choice('식량을 나눈다',{xp:5},{food:10},{neighbor:id,favor:15}),choice('이번에는 사정을 전한다',{}, {},{neighbor:id,favor:-3})]};}
     return e;
   }
-  function arrive(s,e){s.events[e.id]=clone(e);
+  function arrive(s,e){
+    if(s.v08&&['refugee','merchant','neighbor','leopold','request'].includes(e.kind)){const id=`guest-${++s.guestSerial}`,ev={...clone(e),id};
+      // 금화가 열리기 전에는 금화 비용을 받지 않는다 — 안 보이는 값으로 선택이 막히면 안 된다
+      if(!s.opened.gold)ev.choices=ev.choices.map(c=>{const cost={...(c.cost||{})};delete cost.gold;return {...c,cost};});
+      s.events[id]=ev;s.guests.push({id,inside:e.kind==='request',until:s.elapsedDays+({refugee:3,merchant:2,neighbor:5,leopold:3,request:3}[e.kind])});s.notices.push({kind:'toast',text:e.title+' · 성문에서 기다립니다'});return;}
+    s.events[e.id]=clone(e);
     if(['request','neighbor'].includes(e.kind))s.queue.push({id:e.id,until:s.day+3});else s.pending=e.id;
     if(e.kind==='merchant')s.visitors.push({kind:'merchant',until:s.day+3});
     if(e.kind==='inspection'){s.sus=clamp(s.sus+(adjacent(slotOf(s,'parlor'),slotOf(s,'nursery'))?15:0)+(K.registries[s.julian.registry]?.inspection||0)-(s.neighbors.halden>=70?15:0));}
     if(e.kind==='leopold'&&s.julian.registry==='ottilie')s.sus=clamp(s.sus+5);
   }
-  function expireQueue(s){for(const q of s.queue.filter(q=>q.until<s.day)){const e=eventFor(s,q.id),c=e.choices.at(-1);effects(s,c.fx);if(c.neighbor)favor(s,c.neighbor,c.favor);log(s,`${e.title} 기한 만료 · ${c.label}`);}s.queue=s.queue.filter(q=>q.until>=s.day);}
+  function expireQueue(s){if(s.v08){for(const g of s.guests.filter(g=>g.until<=s.elapsedDays)){const e=eventFor(s,g.id);if(e.kind==='leopold')refuseLeopold(s);if(e.kind==='neighbor'){const id=e.neighbor||e.choices.find(c=>c.neighbor)?.neighbor;if(id)favor(s,id,-5);}if(e.kind==='request')effects(s,e.choices.at(-1).fx);log(s,e.title+' 기한 만료');}s.guests=s.guests.filter(g=>g.until>s.elapsedDays);}
+for(const q of s.queue.filter(q=>q.until<s.day)){const e=eventFor(s,q.id),c=e.choices.at(-1);effects(s,c.fx);if(c.neighbor)favor(s,c.neighbor,c.favor);log(s,`${e.title} 기한 만료 · ${c.label}`);}s.queue=s.queue.filter(q=>q.until>=s.day);}
   function checkGoals(s){if(s.p1)return;const i=season(s),checks=[
     [structures(s,'field').length&&Object.entries(s.rooms).some(([id,r])=>r?.type==='field'&&workers(s,id).length),s.metrics.recruited>0,s.metrics.checkup>0],
     [s.res.food>=100,s.metrics.trade>0,!!s.julian.registry],
@@ -393,17 +423,40 @@
   const closest=s=>Object.entries(s.julian.relationships).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([id,value])=>({id,value,name:K.folk.find(f=>f.id===id)?.name||id}));
   const emperorType=s=>({martial:'정복왕',learning:'현제',etiquette:'궁정의 황제',people:'백성의 황제'})[Object.keys(s.julian.abilities).sort((a,b)=>s.julian.abilities[b]-s.julian.abilities[a])[0]];
   const ourPreparation=s=>clamp(Object.values(s.julian.abilities).reduce((a,b)=>a+b,0)/4+defense(s,slotOf(s,'gate'))/3);
-  function nextUnlock(s){const age=s.julian.age<3?3:s.julian.age<5?5:6;return {age,seasons:Math.max(0,age*4-s.completedSeasons),name:age===3?'성 안 탐방과 유대':age===5?'스승 지정':'성장 결과'};}
+  function nextUnlock(s){const age=s.julian.age<1?1:s.julian.age<3?3:s.julian.age<5?5:s.julian.age<6?6:7;return {age,seasons:Math.max(0,age*4-s.completedSeasons),name:age===1?'의심과 열쇠':age===3?'성 안 탐방과 유대':age===5?'스승 지정':age===6?'학문도시 유학':'성장 결과'};}
   function initP1(s){
-    s.p1=true;s.completedSeasons=0;s.isolde=0;s.teacher=null;s.teacherChanges=0;s.tools={book:false,sword:false};s.lessons={martial:0,learning:0,etiquette:0};
+    s.v08=true;s.prologue='gate';s.opened={};s.sus=0;s.julian.bond=0;s.territories={gren:{name:'그렌바흐 대공령',favor:100,flag:'north',votes:3},berg:{name:'베르크 기사령',favor:70,flag:'north',votes:2},licht:{name:'리히트하임 학문도시',favor:40,flag:'neutral',votes:2}};s.guests=[];s.leopold={lastAt:null,armed:true,stayUntil:null};s.guestSerial=0;s.reputation=0;s.p1=true;s.completedSeasons=0;s.isolde=0;s.teacher=null;s.teacherChanges=0;s.tools={book:false,sword:false};s.lessons={martial:0,learning:0,etiquette:0};
     Object.assign(s.julian,{age:0,abilities:{martial:0,learning:0,etiquette:0,people:0},relationships:{},tags:[],location:'r1c3',dangerDays:0});
     // Lord's private residence is a reserved inner alcove, outside the ten buildable room types.
     s.residence={slot:'r1c2',occupants:['eleanor','julian']};
     s.telemetry={reachedSix:false,failures:0,recoveries:0,playMs:0,actions:[],unlocks:[{age:0,day:0}],teacherSelections:[],teacherChanges:0,productionLost:{food:0,wood:0,gold:0},seasons:[]};
-    s.notices=[{kind:'intro',title:'그렌바흐의 작은 황자',text:'죽은 황후 리셀라의 적통 황자 율리안을 북부 그렌바흐 성에 숨겨 키웁니다. 리셀라를 죽인 제2황비 이졸데와 페른하임 가문이 적이며, 크리스토프는 레오폴트의 사생아입니다. 16세에 황제가 되지 못하면 죽음뿐입니다.\n이번 이야기는 6세까지: 성장하며 늘어나는 일이 영지를 어떻게 바꿀까요?'},{kind:'unlock',title:'율리안이 0세가 됐습니다. 이제 지키기를 할 수 있습니다',text:'요람실에 마음 높은 사람을 두어 건강과 애착을 지키세요. 응접실은 의심을 낮춥니다.'}];
+    s.folk.forEach(f=>{f.knowsJulian=['eleanor','ottilie','johanna'].includes(f.id);f.careDays=0;});
+    s.notices=[];
   }
-  function validP1(s){return Number.isInteger(s.completedSeasons)&&s.completedSeasons>=0&&s.completedSeasons<=24&&s.julian.age===Math.floor(s.completedSeasons/4)&&Number.isFinite(s.isolde)&&s.isolde>=0&&s.isolde<=100&&s.julian.abilities&&Object.values(s.julian.abilities).length===4&&Object.values(s.julian.abilities).every(n=>Number.isFinite(n)&&n>=0&&n<=100)&&s.julian.relationships&&Object.values(s.julian.relationships).every(n=>Number.isFinite(n)&&n>=0)&&Array.isArray(s.julian.tags)&&s.telemetry&&Array.isArray(s.telemetry.actions)&&Number.isFinite(s.telemetry.playMs)&&s.tools&&s.lessons&&s.residence?.slot==='r1c2'&&(!s.teacher||s.folk.some(f=>f.id===s.teacher&&f.status==='가신'))&&s.folk.every(f=>Number.isFinite(f.wis)&&f.wis>=1&&f.wis<=10&&['가신','영지민','피난민'].includes(f.status));}
+  function kidnapRisk(s){const j=s.julian,t=s.territories[j.abroad?.territory];if(!t||j.kidnapped||t.flag==='north'&&t.favor>=80)return 0;return Math.max(0,(80-t.favor)/80)*(s.sus/100)*B.v08.kidnapRate;}
+  function rescueChance(s,ids){const strength=ids.reduce((n,id)=>{const f=s.folk.find(f=>f.id===id);return n+Math.max(f?.str||0,f?.martial||0);},0);return clamp(.7+(strength-12)*.05,0,1);}
+  function validateTravel(s,a){const j=s.julian;if(a.type==='registry')return j.age<3?'3세부터 출생신고 가능':j.registry?'이미 출생신고를 마쳤습니다':affordable(s,price(s,a))?null:'금화 20 필요';if(a.type==='study')return j.age<6?'6세부터 유학 가능':!j.registry?'출생신고 필요':!s.territories.licht.visited?'리히트하임 사절 1회 필요':j.abroad||j.kidnapped?'이미 성 밖에 있습니다':null;if(a.type==='returnStudy')return !j.kidnapped&&j.abroad?.kind==='study'?null:'유학 중일 때 돌아올 수 있습니다';if(!j.kidnapped)return '납치된 상태가 아닙니다';if(s.expeditions.some(e=>e.kind==='rescue'))return '이미 구출대가 출발했습니다';if(!Array.isArray(a.ids)||a.ids.length!==2||new Set(a.ids).size!==2||a.ids.some(id=>!s.folk.some(f=>f.id===id&&f.status==='가신'&&available(f))))return '활동 가능한 가신 2명 필요';return a.ids.reduce((n,id)=>{const f=s.folk.find(f=>f.id===id);return n+Math.max(f.str,f.martial||0);},0)<12?'힘 또는 무예 합 12 필요':null;}
+  function performTravel(s,a){const j=s.julian;if(a.type==='registry'){j.registry='registered';s.sus=clamp(s.sus+5);log(s,'출생신고 · 의심 +5');}if(a.type==='study'){j.abroad={kind:'study',territory:'licht'};j.location='outside';}if(a.type==='returnStudy'){j.abroad=null;j.location='residence';}if(a.type==='rescue'){const rooms={};for(const id of a.ids){const f=s.folk.find(f=>f.id===id);rooms[id]=f.room;f.room=null;f.away='rescue';}s.expeditions.push({kind:'rescue',ids:[...a.ids],rooms,chance:rescueChance(s,a.ids),returnAt:s.elapsedDays+3});}}
+  function tickKidnap(s){if(s.status!=='playing')return;const j=s.julian;if(j.kidnapped){if(s.elapsedDays>=j.kidnapped.deadline)rollback(s,'율리안 탈취 · 납치 후 7일 안에 구출하지 못했습니다');return;}if(kidnapRisk(s)>0&&random(s)<kidnapRisk(s)){j.kidnapped={territory:j.abroad.territory,deadline:s.elapsedDays+7};j.location='kidnapped';s.notices.push({kind:'toast',text:'율리안 납치 · 7일 안에 가신 두 명의 구출대를 보내세요'});}}
+  function changeFavor(s,id,n,reason){const t=s.territories[id];t.favor=clamp(t.favor+n);t.reasons||=[];t.reasons.push({day:s.elapsedDays,value:n,text:reason});t.reasons=t.reasons.slice(-8);if(t.favor<30)t.flag='neutral';}
+  function validateDiplomacy(s,a){if(!s.opened.map)return '5세부터 지도를 엽니다';const t=s.territories[a.neighbor];if(!t||!['berg','licht'].includes(a.neighbor))return 'v0.8에서는 잠긴 영지입니다';if(a.type==='gift')return affordable(s,price(s,a))?null:'금화 20 필요';if(a.type==='envoy'){if(s.reputation<20)return '명성 20 필요';const f=s.folk.find(f=>f.id===a.id);return !f||f.status!=='가신'||!available(f)?'활동 가능한 가신 한 명 필요':null;}if(s.julian.abroad||s.julian.kidnapped)return '율리안이 성 밖에 있습니다';const key=a.neighbor==='licht'?'learning':'martial';return t.favor<50?'호감 50 필요':s.julian.abilities[key]<15?(key==='learning'?'학문':'무예')+' 15 필요':null;}
+  function performDiplomacy(s,a){const t=s.territories[a.neighbor];if(a.type==='gift')changeFavor(s,a.neighbor,5,'금화 선물');if(a.type==='envoy'){const f=s.folk.find(f=>f.id===a.id);s.expeditions.push({kind:'diplomat',ids:[f.id],room:f.room,neighbor:a.neighbor,returnAt:s.elapsedDays+5});f.away='envoy';f.room=null;}if(a.type==='showJulian'){t.flag='north';s.sus=clamp(s.sus+B.v08.showSuspicion+(a.neighbor==='licht'?15:0));if(a.neighbor==='berg'&&!t.shown)changeFavor(s,a.neighbor,20,'율리안을 직접 만남');t.shown=true;s.julian.abroad={kind:'visit',territory:a.neighbor,until:s.elapsedDays+3};s.julian.location='outside';}}
+  function unlock(s,key,text){if(s.opened[key])return;s.opened[key]=true;s.notices.push({kind:'toast',text});}
+  function unlockValues(s){if(!s.v08)return;if(s.elapsedDays>=30)unlock(s,'gold','첫 세금날 · 금화가 열렸습니다');if(s.elapsedDays>=60)unlock(s,'raid','가을 정찰대 · 습격 경보와 성 깃발이 열렸습니다');if(s.julian.age>=1&&!s.opened.suspicion){unlock(s,'suspicion','성문에 낯선 행상인이 아기를 찾습니다 · 의심과 열쇠가 열렸습니다');arrive(s,{kind:'merchant',title:'아기를 찾는 낯선 행상인',text:'이 성에 어린아이가 있다는 말을 들었습니다.',choices:[{label:'응접실에서 환대한다',cost:{food:4},fx:{}},{label:'돌려보낸다',cost:{},fx:{}}]});}if(s.julian.age>=2)unlock(s,'reputation','명성이 열렸습니다');if(s.julian.age>=3)unlock(s,'bond','애착·유대와 출생신고가 열렸습니다');if(s.julian.age>=5)unlock(s,'map','능력치·스승·지도와 지지율이 열렸습니다');if(s.julian.age>=6)unlock(s,'study','학문도시 유학이 열렸습니다');}
+  function reputation(s,n){if(s.opened.reputation)s.reputation=clamp(s.reputation+n);}
+  function support(s){return Object.values(s.territories).filter(t=>t.flag==='north').reduce((n,t)=>n+t.votes,0)/18*70;}
+  function refuseLeopold(s){s.sus=clamp(s.sus+10);reputation(s,-10);log(s,'레오폴트 거절 · 의심 +10 · 명성 −10');}
+  function leopoldScore(s){return sum(workers(s,slotOf(s,'parlor')),'heart')+s.julian.abilities.etiquette/10;}
+  function threatV08(s){if(!s.opened.suspicion)return;
+    const l=s.leopold;if(s.sus<30)l.armed=true;
+    if(l.stayUntil!==null&&s.elapsedDays>=l.stayUntil){const success=s.julian.abroad?.kind==='study'||leopoldScore(s)>=10;l.stayUntil=null;s.sus=clamp(s.sus+(success?-15:20));if(success)reputation(s,5);s.notices.push({kind:'toast',text:success?'레오폴트 숨기기 성공 · 의심 −15 · 명성 +5':'레오폴트에게 들켰습니다 · 의심 +20'});}
+    if(s.sus>=30&&l.armed&&l.stayUntil===null&&(l.lastAt===null||s.elapsedDays-l.lastAt>=240)){l.lastAt=s.elapsedDays;l.armed=false;arrive(s,{kind:'leopold',title:'레오폴트의 방문',text:'5일간 성에 머물겠다고 합니다. 응접실 마음 + 예법/10 ≥ 10이면 숨기기 성공. 유학 중이면 자동 성공.',choices:[{label:'받는다',cost:{},fx:{}},{label:'돌려보낸다',cost:{},fx:{sus:10}}]});}
+s.thresholds||={};if(s.sus>=100&&!s.thresholds.search&&!s.raid){s.thresholds.search=true;startRaid(s,{name:'황궁 수색대',day:119,boss:true});s.raid.search=true;s.raid.power=Math.max(s.raid.power,raidPower(s,{day:119,boss:true}));}if(assassinSuspicion(s)>=60&&!s.thresholds.assassin&&!s.julian.kidnapped){s.thresholds.assassin=true;const guards=workers(s,s.julian.location);if(sum(guards,'str')<12){s.julian.health=clamp(s.julian.health-40);s.notices.push({kind:'toast',text:'자객 습격 · 율리안 건강 −40'});}}}
+  function validP1(s){return Number.isInteger(s.completedSeasons)&&s.completedSeasons>=0&&s.completedSeasons<=28&&s.julian.age===Math.floor(s.completedSeasons/4)&&Number.isFinite(s.isolde)&&s.isolde>=0&&s.isolde<=100&&s.julian.abilities&&Object.values(s.julian.abilities).length===4&&Object.values(s.julian.abilities).every(n=>Number.isFinite(n)&&n>=0&&n<=100)&&s.julian.relationships&&Object.values(s.julian.relationships).every(n=>Number.isFinite(n)&&n>=0)&&Array.isArray(s.julian.tags)&&s.telemetry&&Array.isArray(s.telemetry.actions)&&Number.isFinite(s.telemetry.playMs)&&s.tools&&s.lessons&&s.residence?.slot==='r1c2'&&(!s.teacher||s.folk.some(f=>f.id===s.teacher&&f.status==='가신'))&&s.folk.every(f=>Number.isFinite(f.wis)&&f.wis>=1&&f.wis<=10&&['가신','영지민','피난민'].includes(f.status));}
   function validateP1(s,a){
+    if(s.v08&&['registry','study','returnStudy','rescue'].includes(a.type))return validateTravel(s,a);
+    if(s.v08&&a.type==='recall'&&(s.julian.abroad||s.julian.kidnapped))return '성 밖에서는 영주관으로 부를 수 없습니다';
+    if(s.v08&&['gift','envoy','showJulian'].includes(a.type))return validateDiplomacy(s,a);
     if(['registry','craft','equip','scout','buy','sell','use_item','gift','envoy','caravan'].includes(a.type))return '프로토 1에서는 사용하지 않습니다';
     if(a.slot===s.residence.slot||a.other===s.residence.slot)return '영주관은 엘레노어와 율리안의 고정 거처입니다';
     if(a.type==='recall')return s.julian.age>=3?null:'3세부터 성 안을 걷습니다';
@@ -430,7 +483,7 @@
   function visitP1(s,location){
     const j=s.julian;if(j.age<3)return;
     const previous=j.location;j.location=location;
-    if(location==='outside'&&previous!=='outside'){s.sus=clamp(s.sus+5);log(s,'율리안이 안뜰 너머로 나갔다 · 의심 +5');}
+    if(!s.v08&&location==='outside'&&previous!=='outside'){s.sus=clamp(s.sus+5);log(s,'율리안이 안뜰 너머로 나갔다 · 의심 +5');}
     const people=location==='residence'?s.folk.filter(f=>f.id==='eleanor'&&available(f)):workers(s,location);
     for(const f of people){j.relationships[f.id]=(j.relationships[f.id]||0)+1;if(j.age>=5)j.abilities.people=clamp(j.abilities.people+.12);}
     for(const p of closest(s)){const f=s.folk.find(f=>f.id===p.id);if(f&&p.value>=3)addTags(s,f);}
@@ -439,13 +492,17 @@
   }
   function tickP1(s){
     const j=s.julian;
-    if(j.age>=3){
+    if(s.v08&&s.opened.map)for(const [id,t] of Object.entries(s.territories))if(id!=='gren'){t.favor=clamp(t.favor-.075);if(t.favor<30)t.flag='neutral';}
+    if(s.v08&&j.abroad?.kind==='visit'&&s.elapsedDays>=j.abroad.until){j.abroad=null;j.location='residence';}
+    if(s.v08&&j.kidnapped)return;
+    if(s.v08&&j.abroad?.kind==='study'){s.lessons.learning+=8*B.lessonRate*educationMultiplier(s)*2/30;j.bond=clamp(j.bond-.1);return;}
+    if(j.age>=3&&!j.abroad){
       let location=j.location;
       if(s.elapsedDays%2===0){const choices=[...Object.keys(s.rooms).filter(id=>s.rooms[id]?.type),'residence','yard'];location=random(s)<.035?'outside':choices[Math.floor(random(s)*choices.length)];}
       visitP1(s,location);
     }
     const f=s.folk.find(f=>f.id===s.teacher&&available(f));
-    if(j.age>=5&&f){
+    if(j.age>=5&&f&&!j.abroad){
       const key=['str','wis','heart'].sort((a,b)=>f[b]-f[a])[0],ability={str:'martial',wis:'learning',heart:'etiquette'}[key];
       // 계절당 상승 = 스승 능력치 × 0.35 × 애착 보정 — 16세까지 키우는 게임이라 6세에 상한(100)이 차면 안 된다(×2였을 때 1년 만에 100)
       s.lessons[ability]+=f[key]*B.lessonRate*educationMultiplier(s)/30;
@@ -461,32 +518,33 @@
   function boundaryP1(s){
     finishEducation(s);
     s.telemetry.seasons.push({season:s.completedSeasons,teacher:s.teacher,changes:s.teacherChanges,lessons:clone(s.lessons),productionLost:clone(s.telemetry.productionLost)});
-    s.completedSeasons++;s.isolde=clamp(s.isolde+1.5+s.sus*.025);
-    for(const f of s.folk)if(f.satisfaction<30&&random(s)<.05){s.sus=clamp(s.sus+10);log(s,`${f.name}의 밀고 · 의심 +10`);}
+    s.completedSeasons++;if(!s.v08)s.isolde=clamp(s.isolde+1.5+s.sus*.025);
+    for(const f of s.folk)if(f.satisfaction<30&&(!s.v08||s.opened.suspicion&&f.knowsJulian)&&random(s)<.05){s.sus=clamp(s.sus+10);log(s,`${f.name}의 밀고 · 의심 +10`);}
     s.teacher=null;s.teacherChanges=0;s.lessons={martial:0,learning:0,etiquette:0};
     s.thresholds={};
     if(s.day===120){
       s.julian.age++;const age=s.julian.age;
       s.julian.timeline.push({day:s.elapsedDays,title:`${age}세`});
-      if([3,5,6].includes(age)){
-        const title=age===6?'8세: 율리안이 일을 거든다':`율리안이 ${age}세가 됐습니다. 이제 ${age===3?'유대를 쌓기':'스승 지정'}를 할 수 있습니다`;
+      if([3,5,6,7].includes(age)){
+        const title=age===7?'7세: 성장 결과':age===6?'6세: 학문도시 유학':`율리안이 ${age}세가 됐습니다. 이제 ${age===3?'유대를 쌓기':'스승 지정'}를 할 수 있습니다`;
         s.notices.push({kind:'unlock',title,text:age===3?'율리안이 성 안을 돌아다닙니다. 가장 친한 세 사람에게서 성향을 배웁니다. 위험한 방과 성 밖을 살펴주세요.':age===5?'계절마다 가신 한 명을 스승으로 지정하세요. 스승은 생산의 절반을 교육에 씁니다. 요람실은 이제 공부방입니다.':'6세까지의 이야기가 끝났습니다. 다음 이야기에서는 아이가 영지의 일을 거듭니다.'});
         s.telemetry.unlocks.push({age,day:s.elapsedDays});
       }
       const tax=Math.round(s.folk.length*B.taxPerPerson*averageSatisfaction(s)/100);s.res.gold+=tax;
       s.yearReports.push({year:s.year,tax,health:s.julian.health,bond:s.julian.bond});
       s.notices.push({kind:'report',title:`${s.year}년 연말 결산`,text:`함께한 사람 ${s.folk.length}명 · 건강 ${Math.round(s.julian.health)} · 애착 ${Math.round(s.julian.bond)} · 세금 +${tax} 금화`});
-      if(age===6){s.status='complete';s.telemetry.reachedSix=true;return s;}
-      s.year++;s.day=0;
+      if(age===7){s.status='complete';s.telemetry.reachedSeven=true;return s;}if(age===6)s.telemetry.reachedSix=true;
+      s.year++;s.day=0;if(s.v08)unlockValues(s);
     }else s.notices.push({kind:'p1season',title:`${K.seasons[season(s)]}이 왔습니다`,text:s.julian.age>=5?'이번 계절의 스승을 지정하세요.':'아이와 함께 새 계절을 준비하세요.'});
     s.checkpoint=snapshot(s);return s;
   }
   function dayEventP1(s){
-    const e=K.events.find(e=>e.day===s.day&&['refugee','request','season'].includes(e.kind));
+    // v0.8은 계절 사건을 뺀다 — 자원만 주고받고 의심·명성·율리안과 이어지지 않아 고민거리가 되지 못했다
+    const e=K.events.find(e=>e.day===s.day&&(s.v08?['refugee','merchant','request']:['refugee','merchant','request','season']).includes(e.kind));
     if(e&&!(e.kind==='refugee'&&!nextCandidate(s)))return e;
     return null;
   }
-  function threatP1(s){
+  function threatP1(s){if(s.v08){threatV08(s);return;}
     if(s.pending)return;
     s.thresholds||={};
     const level=[100,80,50].find(n=>s.sus>=n&&!s.thresholds[n]);if(!level)return;
@@ -517,13 +575,13 @@
         &&s.folk.every(f=>K.folk.some(p=>p.id===f.id)&&K.traits[f.trait]&&finite(f.hp)&&finite(f.hurt)&&finite(f.level,1,10)&&finite(f.satisfaction,0,100)&&finite(f.xp)&&['str','dex','heart'].every(k=>finite(f[k],1,10)&&finite(f.work[k]))&&Array.isArray(f.history))
         &&validRooms(s)&&s.folk.every(f=>f.room===null||!!s.rooms[f.room]?.type)
         &&s.inventory.every(id=>K.weapons.some(w=>w.id===id)||K.items[id])&&s.rush&&finite(s.failures)&&finite(s.blizzardUntil)&&Number.isFinite(s.lullabyDay)
-        &&(!s.pending||!!eventFor(s,s.pending))&&(!s.raid||finite(s.raid.hp)&&finite(s.raid.max)&&Array.isArray(s.raid.path)&&s.raid.path.every(id=>s.rooms[id]?.type)&&Number.isInteger(s.raid.idx)&&s.raid.idx>=0&&s.raid.idx<s.raid.path.length)
+        &&(!s.pending||!!eventFor(s,s.pending))&&(!s.raid||finite(s.raid.hp)&&finite(s.raid.max)&&Array.isArray(s.raid.path)&&s.raid.path.every(id=>s.rooms[id]?.type||s.v08&&id===s.residence.slot)&&Number.isInteger(s.raid.idx)&&s.raid.idx>=0&&s.raid.idx<s.raid.path.length)
         &&['playing','yearEnd','gameOver','complete'].includes(s.status)&&finite(s.gateHP,0,gateMax(s))&&finite(s.wallLevel,1,3)&&Array.isArray(s.crafts)&&Array.isArray(s.queue)&&s.events&&s.built&&s.neighbors&&s.metrics&&s.capital&&Array.isArray(s.goals)&&Array.isArray(s.warnings)&&Array.isArray(s.julian.timeline);
     }
     try{return !!(shape(s)&&s.checkpoint&&s.checkpoint.checkpoint===null&&shape(s.checkpoint));}catch{return false;}
   }
 
-  return {createLegacy:seed=>create(seed,true),educationMultiplier,emperorType,closest,nextUnlock,ourPreparation,visitP1,finishEducation,columns,firstColumn,lodging,restore,eventFor,visitor,averageSatisfaction,satisfactionMult,gateMax,defense,raidPower,forecast,craftDays,scoutRisk,tradePrice,merchantHere,growth:s=>K.growth[s.julian.growth],risks,objectives:s=>K.objectives[season(s)].map((text,i)=>({text,done:s.goals[season(s)].includes(i)})),create,step,act,validate,price,rate,daily,season,workers,slotOf,popCap,storageCap,capacity,unlocked,maxHP,weaponPower,validSave,
+  return {reinforcements,isoldeFunding,assassinSuspicion,kidnapRisk,rescueChance,changeFavor,aptitude,grade,suited,flagTime,leopoldScore,unlockValues,support,arrive,createLegacy:seed=>create(seed,true),educationMultiplier,emperorType,closest,nextUnlock,ourPreparation,visitP1,finishEducation,columns,firstColumn,lodging,restore,eventFor,visitor,averageSatisfaction,satisfactionMult,gateMax,defense,raidPower,forecast,craftDays,scoutRisk,tradePrice,merchantHere,growth:s=>K.growth[s.julian.growth],risks,objectives:s=>K.objectives[season(s)].map((text,i)=>({text,done:s.goals[season(s)].includes(i)})),create,step,act,validate,price,rate,daily,season,workers,slotOf,popCap,storageCap,capacity,unlocked,maxHP,weaponPower,validSave,
     // 순수 규칙 테스트용: 입력 사본에 피해를 가한다.
     injure(state,id,n){const s=clone(state);damage(s,id,n);return s;}};
 });

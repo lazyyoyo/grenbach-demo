@@ -31,7 +31,7 @@
     warm: { name: '다정한 손길', desc: '요람실 건강 회복 +0.5.', care: .5 },
   };
   const folk = [
-    ['eleanor','엘레노어','변경백',8,3,4,'brave','r0c1',true,'media/eleanor.webp'],
+    ['eleanor','엘레노어','대공',8,3,4,'brave','r0c1',true,'media/eleanor.webp'],
     ['ottilie','오틸리에','옛 유모',1,4,10,'lullaby','r1c3',true,'media/ottilie.webp'],
     ['johanna','요한나','젖어미',2,5,7,'warm','r1c1',true],
     ['heinz','하인츠','경비대장',8,2,2,'northern','r0c1',true],
@@ -63,10 +63,13 @@
     ...[['봄의 종자',3,{food:20}],['가을의 창고',73,{wood:25}],['긴 밤의 등불',92,{health:6}]].map(([title,day,fx],i) => ({id:`season${i}`,kind:'season',day,title,text:'계절이 바뀌면 성 안의 일도 달라진다. 오늘 할 일을 미리 정해 두자.',choices:[choice('함께 준비한다',fx,{gold:8}),choice('지금은 아껴 둔다')]})),
   ].sort((a,b) => a.day-b.day);
   return {
-    version: 5, totalDays:720, dayMs:4000, seasons:['봄','여름','가을','겨울'],
+    version: 6, totalDays:840, dayMs:4000, seasons:['봄','여름','가을','겨울'],
     balance:{start:{food:45,wood:40,gold:110},popBase:6,storageBase:150,foodPerPerson:.65,
       woodUse:[1,.5,2,4],levelXP:[0,25,65,120,190],levelMult:[1,1.5,2],lessonRate:.35,
       raidHP:2.0,raidBonus:[4,0,20,38],raidVariance:.45,raidDamage:.6,bossBonus:24,defenseScale:1.60,
+      v08:{raidBase:.94,raidYear:.015,raidBonus:[4,0,20,38],bossBonus:24,
+        southBase:.6,southScale:.6,reinforcements:{berg:14,licht:7},
+        showSuspicion:12,abroadAssassin:2,kidnapRate:.04},
       yearScale:.18,healthWithoutCare:5,starvationDamage:5,coldDamage:4,taxPerPerson:5},
     rooms,traits,folk,events,
     growth:['갓난아기','뒤집기','기어가기','붙잡고 서기','첫걸음'],
