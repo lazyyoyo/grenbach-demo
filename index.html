@@ -444,7 +444,9 @@
     const [title, text, img] = ENDS[kind], lost = ['taken', 'raided', 'sick'].includes(kind);
     const why = { wolf: '겨울을 버티고, 애착 55 이상에서 엘레노어의 아이로 적었다.', knight: '겨울을 버티고, 애착 55 이상에서 기사의 유복자로 적었다.', stranger: `겨울은 버텼지만 애착(${Math.round(G.julian.bond)})이 55에 못 미쳤다. 엘레노어나 마음 높은 사람을 요람실에 더 오래 두면 애착이 빨리 오른다.`,
       taken: '의심이 100이 되었다.', raided: '성문이 무너졌을 때 요람실이 비어 있었거나, 호르칸이 아직 강했다(체력 30 초과).', sick: '율리안의 건강이 0이 되었다.' }[kind];
-    event({ eyebrow: lost ? `게임 오버 · ${dateOf(G.day)}` : `엔딩 · 수집 ${got.length}/6`, title, text: text + `\n\n${lost ? '진 이유' : '이 엔딩인 이유'}: ${why}\n\n버틴 날 ${G.day}일 · 막아 낸 습격 ${G.raidsWon}번 · 영지민 ${G.folk.length}명 · 율리안의 애착 ${Math.round(G.julian.bond)}`,
+    const grade = { wolf: '가장 좋은 엔딩', knight: '좋은 엔딩', stranger: '보통 엔딩' }[kind];
+    // 겨울을 넘긴 엔딩을 패배로 읽는 일이 잦았다 — 승패와 등급을 맨 위에 적는다
+    event({ eyebrow: lost ? `게임 오버 · ${dateOf(G.day)}` : `승리 · 겨울을 버텼다 · ${grade} · 수집 ${got.length}/6`, title, text: text + `\n\n${lost ? '진 이유' : '이 엔딩인 이유'}: ${why}${lost ? '' : '\n\n율리안은 살아서 봄을 맞는다. 다음 겨울(율리안 1세)은 개발 예정이다.'}\n\n버틴 날 ${G.day}일 · 막아 낸 습격 ${G.raidsWon}번 · 영지민 ${G.folk.length}명 · 율리안의 애착 ${Math.round(G.julian.bond)}`,
       choices: [{ label: '처음부터 다시', fn: () => setTimeout(newGame, 0) }] });
     renderHud(); syncRooms();
   }
