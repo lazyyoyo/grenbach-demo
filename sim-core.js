@@ -32,8 +32,9 @@
     s.gateHP=140;s.wallLevel=1;s.repair=null;s.crafts=[];s.visitors=[];s.queue=[];s.events={};s.built={};s.neighbors={rosental:40,eisenberg:35,halden:45,berg:40};s.metrics={trade:0,recruited:0,checkup:0,raidDamage:0,emptyParlor:0};s.goals=[[],[],[],[]];s.warnings=[];s.julian.registry=null;s.julian.growth=0;s.julian.timeline=[{day:0,title:'갓난아기'}];for(const r of Object.values(s.rooms))if(r?.type)s.built[r.type]=(s.built[r.type]||0)+1;capitalNews(s);if(!legacy)initP1(s);s.checkpoint=snapshot(s);return s;
   }
   // 고정 좌표: r0은 지상, c1..3은 시작 열, c0/c4는 바깥 확장 열.
-  const columns=s=>s.level>=5?5:s.level>=3?4:3;
-  const firstColumn=s=>s.level>=3?0:1;
+  // Lv1부터 4칸: 3칸이면 고정 방 5개 + 영주관이 6칸을 다 채워 Lv2 전까지 지을 자리가 0개였다
+  const columns=s=>s.level>=4?5:4;
+  const firstColumn=s=>0;
   function unlocked(s,id){return /^r[0-5]c[0-4]$/.test(id)&&+id[1]<s.level+1&&+id[3]>=firstColumn(s)&&+id[3]<firstColumn(s)+columns(s);}
   function lodging(s){const capacity=structures(s,'dorm').reduce((n,r)=>n+r.size*r.level*4,0),population=s.folk.filter(f=>!s.p1||f.id!=='eleanor').length;return {capacity,population,ratio:population?Math.min(1,capacity/population):1};}
   function restore(saved,seed=1){try{const s=typeof saved==='string'?JSON.parse(saved):saved;return validSave(s)?clone(s):create(seed);}catch{return create(seed);}}

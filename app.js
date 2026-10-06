@@ -156,7 +156,8 @@
     return `<div class="hair" style="background:${hair}"></div><div class="h"></div><div class="b" style="background:${body}${f.hero ? ';box-shadow:inset 0 3px 0 #B9A889' : ''}"></div><div class="l a"></div><div class="l c"></div>${kind ? '' : `<div class="hpb"><i></i></div>`}<div class="nm">${esc(f.name)}</div>${kind?'':'<span class="sleep-mark" aria-hidden="true">z</span>'}`;
   }
   function areaOf(f) {
-    const actual=f.id==='eleanor'&&acc/DAY_MS>.78?G.residence.slot:f.room;
+    // 밤에 영주관으로 보내면 하루 4초라 2초마다 성문↔영주관을 순간이동해 보였다 → 배치된 방에 그대로 둔다
+    const actual=f.room;
     if (actual && geo.rooms[actual]) { const r = geo.rooms[actual]; return { x0: r.x + 16, x1: r.x + r.w - (typeOf(f.room) === 'nursery' ? 66 : 18), floor: r.y + r.h - 22 }; }
     const y = geo.yard; return { x0: y.x + 14, x1: y.x + y.w - 14, floor: y.y + y.h - 4 };
   }
@@ -173,7 +174,7 @@
   function animate(dt) {
     if (!G || !geo) return;
     const alive = new Set(), perRoom = {};
-    const place=f=>(f.id==='eleanor'&&acc/DAY_MS>.78?G.residence.slot:f.room)||'yard';
+    const place=f=>f.room||'yard';
     for (const f of G.folk) {
       if (f.away) continue;
       alive.add(f.id);
