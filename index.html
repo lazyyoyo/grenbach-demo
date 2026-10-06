@@ -1,12 +1,18 @@
 <!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'none'; media-src 'self'; object-src 'none'; base-uri 'none'"><link rel="icon" href="media/julian.webp"><title>그렌바흐 대공령</title><style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>그렌바흐 대공령 v0.9.0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
+<style>
   /* 단일 테마(겨울 밤의 석조 성)로 고정 */
   :root {
     color-scheme: dark;
     --ground: #0F1217; --stone: #1A1F27; --stone-2: #252C37; --line: #333C4A;
     --text: #ECE6DA; --muted: #9AA0AB; --ember: #E0913E; --eye: #63B585; --seal: #D04A55; --ice: #9CC3E2; --gold: #DDB95E;
-    --serif: 'Nanum Myeongjo', 'AppleMyungjo', serif;
-    --sans: 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+    --serif: 'Gowun Batang', 'Nanum Myeongjo', 'AppleMyungjo', serif;
+    --sans: 'IBM Plex Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
   }
   html, body { height: 100%; }
   body { background: var(--ground); color: var(--text); font-family: var(--sans); font-size: 13.5px; line-height: 1.4; user-select: none; -webkit-user-select: none; }
@@ -111,7 +117,12 @@
   .fig .eye { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; background: var(--seal); color: #fff; border-radius: 6px; padding: 0 4px; white-space: nowrap; }
   .fig.raider .b { background: #8E2F2A !important; }
   .fig.raider .hair { background: #3A2B20 !important; height: 8px; }
-  .raidbar { position: absolute; height: 5px; border-radius: 3px; background: rgba(0,0,0,.55); overflow: hidden; z-index: 4; }
+  h1 .ver { font-size: 11px; font-weight: 400; color: var(--muted); letter-spacing: .04em; }
+  .raidbars { position: absolute; z-index: 4; display: grid; gap: 3px; pointer-events: none; }
+  .raidbars .rb { display: grid; grid-template-columns: 34px 1fr 38px; align-items: center; gap: 4px; font-size: 10px; color: #fff; text-shadow: 0 1px 2px #000; }
+  .raidbars .rb .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .raidbar.gatebar i { background: #C9CCD4; }
+  .raidbar { position: relative; height: 5px; border-radius: 3px; background: rgba(0,0,0,.55); overflow: hidden; z-index: 4; }
   .raidbar i { display: block; height: 100%; background: var(--seal); }
   .clash { position: absolute; z-index: 5; font-size: 13px; font-weight: 700; color: #FFE3A0; text-shadow: 0 0 4px #E0913E; pointer-events: none; animation: pop .6s ease-out forwards; }
   .pop { position: absolute; z-index: 6; font-size: 11.5px; font-weight: 600; pointer-events: none; text-shadow: 0 1px 2px #000; animation: rise 1.4s ease-out forwards; white-space: nowrap; }
@@ -145,13 +156,466 @@
   .buildgrid .opt { grid-template-rows: 46px auto auto; padding: 8px; }
   .buildgrid .mini { position: relative; border-radius: 4px; overflow: hidden; }
 </style>
-<style>
-*{box-sizing:border-box}body{margin:0;overflow-x:hidden}html{overflow-x:hidden}.app{width:100%;max-width:520px}.top{flex-wrap:wrap}.world{touch-action:pan-y}.castle-scroll{height:min(56dvh,470px);min-height:330px;overflow-y:auto;border:1px solid var(--line);border-radius:12px;overscroll-behavior:contain}.room .out{top:24px;font-size:9px}.room .tag{font-size:10px;left:5px}.room .tag .cap{font-size:9px;margin-left:3px}.room.locked{opacity:.45;cursor:default}.room.fire{box-shadow:inset 0 0 15px #ed672a}.r-field{background:repeating-linear-gradient(0deg,#35452c 0 12px,#725137 12px 17px)}.r-storage{background:repeating-linear-gradient(90deg,#493b2c 0 22px,#30271d 22px 25px)}.toolbar{display:flex;gap:5px;flex-wrap:wrap}.toolbar button{flex:1;min-height:36px;white-space:nowrap}.roster{display:flex;gap:5px;flex-wrap:wrap}.person{min-height:35px;font-size:11px}.person.selected{border-color:var(--ember)}.estate{font-size:11px;color:var(--gold)}.sheet .body{overflow-wrap:anywhere}.sheet p{font-size:14px}.sheet{max-height:88dvh}.modal{padding:10px;align-items:end}.sheet .pic{max-height:210px}.btn:disabled{opacity:.45}.feedback{min-height:18px;color:var(--gold);font-size:12px}.log{max-height:65px;overflow:auto}.stats-table{width:100%;font-size:12px;border-collapse:collapse}.stats-table td{border-bottom:1px solid var(--line);padding:5px}.keys{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.keys button{min-height:50px}.staff{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;height:58px;align-items:end}.staff i{height:8px;background:var(--stone-2);border-radius:50%;transition:all .12s}.staff i.lit{background:var(--ember)}.staff i.ok{background:var(--eye)}.tutorial{border-left:3px solid var(--ember);padding:8px;background:var(--stone);font-size:12px}.tutorial button{margin-top:5px}.dialog-close{justify-self:end}.expedition{border:1px solid var(--line);padding:8px;border-radius:8px;font-size:12px}.checkfolk{display:flex;gap:8px;align-items:center;padding:7px;background:var(--stone-2);border-radius:6px}.checkfolk input{width:20px;height:20px}.sheet h3{margin:4px 0}.sheet .hint{font-family:var(--sans)}button{touch-action:manipulation}.fig{z-index:3}.fig:focus-visible{outline:2px solid var(--ember)}
-</style><link rel="stylesheet" href="ui.css"></head><body>
-<div class="app" id="game">
-<header class="hud" id="hud" aria-label="영지 현황"><div id="julian-hud" class="julian-hud"></div><div class="estate-hud"><div id="contest"></div><div id="exposure"></div></div><div class="time-res"><b id="date"></b><div id="res" class="res"></div></div></header>
-<main class="playfield"><aside class="leftcard" id="leftcard" aria-label="율리안과 위기"><div id="crib"></div><div id="crisis"></div><div id="satisfaction"></div><div id="objectives"></div></aside><section class="map-area" aria-label="2D 성 단면도"><div id="banner"></div><div class="world" id="world"><div class="mount"></div><div class="mount b"></div><div id="castle-stage" class="castle-stage"></div><canvas class="snow" id="snow"></canvas><div class="camera-controls" aria-label="성 지도 카메라"><button id="zoom-out" aria-label="성 축소">−</button><output id="zoom-level">100%</output><button id="zoom-in" aria-label="성 확대">+</button><button id="camera-home" aria-label="성문으로 이동">⌂</button></div></div><div id="selection" class="selection"></div><div id="tutorial"></div></section><aside class="rightcard" aria-label="상황과 상세"><div id="next-task"></div><div id="panel"></div><div id="teacher"></div></aside></main>
-<footer class="bottom"><nav class="toolbar" aria-label="게임 메뉴"><button id="region" hidden>지도</button><button id="folk" class="btn">영지민 <kbd>F</kbd></button><button id="julian" class="btn">율리안 <kbd>J</kbd></button><button id="build" class="btn">건설 <kbd>B</kbd></button></nav><div id="speed" class="speed" aria-label="배속"></div><button id="records" class="btn">기록 <kbd>L</kbd></button><div id="progress"></div></footer>
-</div><div class="feedback" id="feedback" role="status" aria-live="polite"></div><div id="modal"></div>
-<script src="data.js"></script><script src="sim-core.js"></script><script src="bot-policy.js"></script><script src="app.js"></script>
-</body></html>
+
+<div class="app">
+  <div class="top"><div><h1>그렌바흐 대공령 <small class="ver">v0.9.0</small></h1><div class="date" id="date"></div></div><div class="speed" id="speed"></div></div>
+  <div class="res" id="res"></div>
+  <div class="crib" id="crib"></div>
+  <div id="banner"></div>
+  <div class="world" id="world"><div class="mount"></div><div class="mount b"></div><canvas class="snow" id="snow"></canvas></div>
+  <div class="panel" id="panel"></div>
+</div>
+<div id="modal"></div>
+
+<script src="data.js"></script>
+<script>
+(() => {
+  const K = window.KEEP, R = K.rooms;
+  const DAY_MS = 2600;
+  const $ = id => document.getElementById(id);
+  const world = $('world');
+  const STAT = { str: '힘', dex: '손재주', heart: '마음' };
+  const BODY = { str: '#B5652E', dex: '#B89A3E', heart: '#3F8A5E' };
+  const clamp = (v, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, v));
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  };
+  let G, loop = null, raidLoop = null, acc = 0, last = 0, queue = [], showing = false;
+  let geo = null; // 방 좌표
+  const figs = new Map(); // folk id → {el, x, tx, wait}
+
+  // ═════════ 상태 · 규칙 ═════════
+  function newGame() {
+    const rooms = {};
+    K.layout.forEach((row, r) => row.forEach((t, c) => { rooms[`r${r}c${c}`] = t; }));
+    G = {
+      day: 0, res: { ...K.start }, rooms, folk: K.folk.map(f => ({ ...f, hp: 100, hurt: 0 })),
+      julian: { health: 80, bond: 15 }, sus: 20, speed: 1, sel: null, raid: null, raidsWon: 0,
+      ms: 0, absentUntil: -1, blizzardUntil: -1, log: [], over: null, refugeeIdx: 0, captiveIdx: 0,
+    };
+    figs.forEach(f => f.el.remove()); figs.clear();
+    say('레오폴트 비젠이 성에 묵기 시작했다.');
+    buildCastle();
+    event({ img: 'media/ottilie.webp', eyebrow: '11월 1일', title: '3월 15일까지, 이 애를 지켜 내세요', text:
+      '영지민을 손가락으로 끌어 방에 놓으면 그 방에서 일한다.\n\n· 요람실(아래 오른쪽)이 비면 율리안이 운다.\n· 응접실이 비면 레오폴트가 성을 엿보고, 의심이 쌓인다.\n· 북쪽에서 호르칸이 내려온다. 싸움은 성문에서만 한다. 성문이 비면 호르칸이 성문을 부수고 요람실로 간다.\n· 빈 칸을 누르면 방을 짓는다.\n\n율리안을 빼앗기면 끝이다.',
+      choices: [{ label: '성으로 들어간다' }] });
+    start();
+  }
+  const slots = () => Object.keys(G.rooms);
+  const at = slot => G.folk.filter(f => f.room === slot);
+  const working = slot => at(slot).filter(f => !f.hurt);
+  const typeOf = slot => G.rooms[slot];
+  const slotOf = type => slots().find(s => G.rooms[s] === type);
+  const popCap = () => K.popBase + slots().filter(s => G.rooms[s] === 'dorm').length * R.dorm.pop;
+  const eleanor = () => G.folk.find(f => f.hero);
+  const away = () => G.day < G.absentUntil;
+  const dateOf = d => { for (const [m, n] of [['11월', 30], ['12월', 31], ['1월', 31], ['2월', 28], ['3월', 31]]) { if (d < n) return `${m} ${d + 1}일`; d -= n; } return '3월 이후'; };
+  const say = t => { G.log.unshift(`${dateOf(G.day)} · ${t}`); G.log.length = Math.min(G.log.length, 20); };
+  const sum = (arr, k) => arr.reduce((s, f) => s + f[k], 0);
+  const best = f => ['str', 'dex', 'heart'].sort((a, b) => f[b] - f[a])[0];
+  function rateOf(slot) { const t = R[typeOf(slot)]; return t && t.res ? sum(working(slot), t.stat) * t.rate : 0; }
+  function daily() {
+    const n = G.folk.length;
+    const tot = r => slots().filter(s => R[typeOf(s)]?.res === r).reduce((a, s) => a + rateOf(s), 0);
+    const care = working(slotOf('nursery')), parlor = working(slotOf('parlor'));
+    return {
+      food: tot('food') - 0.5 * n, wood: tot('wood') - (G.day < G.blizzardUntil ? 4 : 2), gold: tot('gold'),
+      sus: 0.6 - sum(parlor, 'heart') * 0.08, bond: sum(care, 'heart') * 0.04 + (care.some(f => f.hero) ? 0.8 : 0), care,
+    };
+  }
+
+  function start() {
+    clearInterval(loop); last = performance.now(); acc = 0;
+    loop = setInterval(() => {
+      const now = performance.now(), dt = now - last; last = now;
+      if (G.over || G.raid || showing || !G.speed) return;
+      acc += dt * G.speed;
+      while (acc >= DAY_MS && !G.over && !G.raid && !showing) { acc -= DAY_MS; dayTick(); }
+    }, 100);
+  }
+  function dayTick() {
+    const d = daily();
+    G.day++;
+    G.res.food = Math.max(0, G.res.food + d.food); G.res.wood = Math.max(0, G.res.wood + d.wood); G.res.gold += d.gold;
+    for (const s of slots()) {
+      const t = R[typeOf(s)];
+      if (t?.res && rateOf(s) > 0) pop(s, `+${rateOf(s).toFixed(1)} ${{ food: '식량', wood: '장작', gold: '금화' }[t.res]}`, t.res === 'gold' ? 'var(--gold)' : t.res === 'wood' ? '#C9A27A' : '#F0C38E');
+      if (t?.train) working(s).forEach(f => { f.str = Math.min(10, f.str + 0.06); });
+    }
+    for (const f of G.folk) {
+      if (f.hurt > 0) { f.hurt--; if (!f.hurt) say(`${f.name}이(가) 몸을 추슬렀다.`); }
+      f.hp = clamp(f.hp + (G.res.food <= 0 ? -8 : 8));
+      if (f.hp <= 0 && !f.hurt) { f.hurt = 4; f.room = null; say(`${f.name}이(가) 굶주려 쓰러졌다.`); }
+    }
+    const j = G.julian;
+    if (!d.care.length) j.health -= 8; else if (G.res.wood <= 0) j.health -= 10; else j.health += 3;
+    if (G.res.wood <= 0) say('장작이 떨어졌다. 성이 식어 간다.');
+    j.health = clamp(j.health); j.bond = clamp(j.bond + d.bond);
+    G.sus = clamp(G.sus + d.sus);
+    if (G.day === G.absentUntil) say('엘레노어가 수도에서 돌아왔다.');
+    if (j.health <= 0) return endGame('sick');
+    if (G.sus >= 100) return endGame('taken');
+    const m = K.milestones[G.ms]; if (m && j.bond >= m[0]) { G.ms++; event({ img: 'media/julian.webp', eyebrow: '성장 기록', title: m[1], text: m[2], choices: [{ label: '계속' }] }); }
+    for (const r of K.raids) { if (G.day === r.day - 3) say(`경보: ${r.name}가 산맥을 넘었다. 사흘 뒤 도착.`); if (G.day === r.day) startRaid(r); }
+    if (K.refugeeDays.includes(G.day)) refugee();
+    story();
+    if (G.day >= K.totalDays && !G.over) finale();
+    renderHud();
+  }
+  function story() {
+    const d = G.day;
+    if (d === 5) event({ img: 'media/leopold.webp', eyebrow: '11월 6일', title: '황후궁의 손님', text: '"묵는 동안 자주 뵙겠습니다, 각하. 이 성은 겨울에도 아이 울음이 들리는군요."\n\n응접실에 마음이 따뜻한 영지민을 두면 그가 레오폴트의 시간을 붙잡아 둔다. 비워 두면 레오폴트가 성 안을 엿보러 다닌다.', choices: [{ label: '…' }] });
+    if (d === 27) event({ img: 'media/leopold.webp', eyebrow: '11월 28일', title: '수도 추모 미사', text: '레오폴트가 동행을 청한다. 가면 의심은 풀리지만, 엘레노어는 열흘 동안 성을 비운다.', choices: [
+      { label: '간다', sub: '의심 −25 · 엘레노어 10일 부재', fn: () => { G.sus = clamp(G.sus - 25); G.absentUntil = G.day + 10; eleanor().room = null; say('엘레노어가 수도로 떠났다.'); } },
+      { label: '가지 않는다', sub: '의심 +15', fn: () => { G.sus = clamp(G.sus + 15); say('레오폴트가 수도로 서신을 보냈다.'); } },
+    ] });
+    if (d === 45) event({ img: 'media/leopold.webp', eyebrow: '12월 16일', title: '녹색 눈', text: '"요람실 아이 말입니다. 눈 색이 참 드문 녹색이더군요. 몇 달 되었습니까?"', choices: [
+      { label: '"두 달."', sub: '의심 −5', fn: () => { G.sus = clamp(G.sus - 5); } },
+      { label: '"다섯 달. 내 아이다."', sub: '의심 +10 · 애착 +5', fn: () => { G.sus = clamp(G.sus + 10); G.julian.bond = clamp(G.julian.bond + 5); } },
+      { label: '금화 30닢을 쥐여 준다', sub: '의심 −15', disabled: () => G.res.gold < 30, fn: () => { G.res.gold -= 30; G.sus = clamp(G.sus - 15); } },
+    ] });
+    if (d === 85) { G.blizzardUntil = d + 12; event({ img: 'media/stills/backdoor.jpg', eyebrow: '1월 25일', title: '긴 눈보라', text: '열이틀 동안 눈보라가 몰아친다. 장작이 두 배로 든다.', choices: [{ label: '벌목장을 챙긴다' }] }); }
+  }
+  function refugee() {
+    if (G.refugeeIdx >= K.refugees.length) return;
+    const p = K.refugees[G.refugeeIdx++];
+    event({ eyebrow: dateOf(G.day), title: '성문 앞의 피난민', text: `${p.role} ${p.name}이(가) 성문을 두드린다.\n힘 ${p.str} · 손재주 ${p.dex} · 마음 ${p.heart}${G.folk.length >= popCap() ? '\n\n정원이 찼다. 숙소를 지어야 받을 수 있다.' : ''}`, choices: [
+      { label: '받아들인다', sub: '하루 식량 0.5 추가', disabled: () => G.folk.length >= popCap(), fn: () => { G.folk.push({ ...p, id: 'p' + G.day, hp: 100, hurt: 0, room: null }); say(`${p.name}이(가) 영지민이 되었다.`); } },
+      { label: '돌려보낸다' },
+    ] });
+  }
+  const GATE_HOLD = 30, GATE_BREAK = 3; // 성문 버팀 30을 1틱(0.9초)에 3씩 — 성문이 비고 약 9초면 부서진다
+  function startRaid(r) {
+    G.raid = { ...r, max: r.hp, gateHp: GATE_HOLD };
+    say(`${r.name}가 성문에 닿았다!`);
+    renderHud(); syncRooms();
+    clearInterval(raidLoop); raidLoop = setInterval(raidTick, 900);
+  }
+  // 싸움은 성문에서만 한다 — 플레이어가 병사를 세운 곳이 성문이라, 다른 방 사람을 건드리면 납득되지 않았다
+  function raidTick() {
+    if (showing) return;
+    const rd = G.raid; if (!rd) return clearInterval(raidLoop);
+    const gate = slotOf('gate'), def = working(gate);
+    if (def.length) {
+      rd.hp -= (sum(def, 'str') + 6) * 0.5; clash(gate);
+      const hit = (rd.hp * 0.22) / def.length;
+      for (const f of def) { f.hp = clamp(f.hp - hit * (f.hero ? 0.6 : 1)); if (f.hp <= 0) { f.hurt = 8; f.room = null; say(`${f.name}이(가) 성문에서 쓰러졌다.`); } }
+      if (rd.hp <= 0) return raidWon();
+    } else {
+      rd.gateHp = Math.max(0, rd.gateHp - GATE_BREAK); pop(gate, '쾅!', 'var(--seal)');
+      if (rd.gateHp <= 0) return gateBroken();
+    }
+    renderHud(); syncRooms();
+  }
+  function gateBroken() {
+    clearInterval(raidLoop);
+    const rd = G.raid; G.raid = null;
+    G.res.food = Math.max(0, G.res.food - 8); G.res.wood = Math.max(0, G.res.wood - 8); G.res.gold = Math.max(0, G.res.gold - 15);
+    G.sus = clamp(G.sus + 8);
+    say(`성문이 부서졌다. 호르칸이 식량·장작·금화를 털었다. 레오폴트가 성벽 위에서 지켜본다. 의심 +8`);
+    if (!working(slotOf('nursery')).length) return endGame('raided');
+    G.julian.health = clamp(G.julian.health - 20);
+    event({ eyebrow: '성문 함락', title: `${rd.name}가 요람실 문 앞까지 왔다`, text: '요람실을 지키던 사람이 율리안을 안고 굴뚝 뒤 좁은 틈에 숨었다. 호르칸은 빈 요람을 걷어차고 털어 간 것을 싣고 물러갔다.\n\n율리안 건강 −20 · 식량 −8 · 장작 −8 · 금화 −15 · 의심 +8', choices: [{ label: '성문을 다시 세운다' }] });
+    renderHud(); syncRooms();
+  }
+  function raidWon() {
+    clearInterval(raidLoop);
+    const rd = G.raid; G.raid = null; G.raidsWon++;
+    const loot = 15 + Math.round(rd.max / 4); G.res.gold += loot;
+    say(`${rd.name}를 물리쳤다. 전리품 금화 +${loot}`);
+    const c = K.captives[G.captiveIdx];
+    if (c) {
+      G.captiveIdx++;
+      event({ eyebrow: '습격 격퇴', title: '호르칸 포로', text: `${c.role} ${c.name}. 무릎을 꿇었지만 눈은 꺾이지 않았다.\n힘 ${c.str} · 손재주 ${c.dex} · 마음 ${c.heart}\n\n받아들이면 강한 손이 생긴다. 하지만 황후궁은 "야만인을 품은 대공"을 좋아하지 않는다.${G.folk.length >= popCap() ? '\n\n정원이 찼다. 숙소를 지어야 받을 수 있다.' : ''}`, choices: [
+        { label: '영지민으로 받아들인다', sub: '의심 +5', disabled: () => G.folk.length >= popCap(), fn: () => { G.folk.push({ ...c, id: 'c' + G.day, hp: 60, hurt: 0, room: null, raiderLook: true }); G.sus = clamp(G.sus + 5); say(`${c.name}이(가) 늑대 문장 아래로 들어왔다.`); } },
+        { label: '산맥 너머로 돌려보낸다' },
+      ] });
+    }
+    renderHud(); syncRooms();
+  }
+  function finale() {
+    const b = G.julian.bond;
+    event({ img: 'media/stills/eleanor-holds.jpg', eyebrow: '3월 15일 · 인구 대장', title: '이 아이를 누구의 자식으로 적는가', text: '산파 마그다가 펜을 내민다.\n"어디서 누가 낳은 애로 할 건지, 말을 맞춰서 오셨지요?"', choices: [
+      { label: '"엘레노어 그렌바흐의 아이."', fn: () => endGame(b >= 55 ? 'wolf' : 'stranger') },
+      { label: '"전사한 기사의 유복자."', fn: () => endGame(b >= 55 ? 'knight' : 'stranger') },
+    ] });
+  }
+  const ENDS = {
+    wolf: ['늑대의 아이', '대장에 그렌바흐 당주의 아이로 적혔다. 그날 밤 율리안이 망토 깃을 붙잡았다.\n"…바바. 엄, 마."\n"…이러면 반칙이지."', 'media/stills/eleanor-holds.jpg'],
+    knight: ['기사의 아들', '이름 모를 기사의 아들로 적혔다. 율리안은 당신을 "이모님"이라 부르며 자랄 것이다.', 'media/julian.webp'],
+    stranger: ['남의 품', '대장에 이름은 적었다. 하지만 율리안은 여전히 오틸리에의 품에서만 잠든다.\n"아이는 서류가 아니라 품을 기억해요, 각하."', 'media/ottilie.webp'],
+    taken: ['빈 관의 주인', '새벽, 황후궁 기사단이 성문 앞에 섰다.\n"제3황자 전하를 모시러 왔습니다. 관이 비어 있으면 안 되니까요."', 'media/leopold.webp'],
+    raided: ['늑대 없는 요람', '호르칸이 요람실까지 들이닥쳤다. 혼란 속에서 율리안을 안고 나간 건 레오폴트였다.\n"전하는 제가 안전한 곳으로 모시겠습니다."', 'media/leopold.webp'],
+    sick: ['수녀원의 겨울', '열이 내리지 않았다. 오틸리에가 율리안을 안고 수녀원으로 달렸다. 그곳에 황후궁 사람들이 있었다.', 'media/stills/julian-fur.jpg'],
+  };
+  function endGame(kind) {
+    G.over = kind; clearInterval(raidLoop); G.raid = null;
+    const got = store.get('keep-endings', []); if (!got.includes(kind)) { got.push(kind); store.set('keep-endings', got); }
+    const [title, text, img] = ENDS[kind], lost = ['taken', 'raided', 'sick'].includes(kind);
+    event({ img, eyebrow: lost ? `게임 오버 · ${dateOf(G.day)}` : `엔딩 · 수집 ${got.length}/6`, title, text: text + `\n\n버틴 날 ${G.day}일 · 막아 낸 습격 ${G.raidsWon}번 · 영지민 ${G.folk.length}명 · 율리안의 애착 ${Math.round(G.julian.bond)}`,
+      choices: [{ label: '처음부터 다시', fn: () => setTimeout(newGame, 0) }] });
+    renderHud(); syncRooms();
+  }
+
+  // ═════════ 모달 ═════════
+  function event(e) { queue.push(e); pump(); }
+  function pump() {
+    if (showing || !queue.length) return;
+    const e = queue.shift(); showing = true;
+    $('modal').innerHTML = `<div class="modal"><div class="sheet">${e.img ? `<img class="pic" src="${e.img}" alt="" onerror="this.remove()">` : ''}<div class="body">
+      ${e.eyebrow ? `<div class="eyebrow">${esc(e.eyebrow)}</div>` : ''}<h2>${esc(e.title)}</h2>${e.text ? `<p>${esc(e.text)}</p>` : ''}
+      <div class="${e.grid ? 'buildgrid' : 'opts'}">${e.choices.map((c, i) => `<button class="opt" data-i="${i}" ${c.disabled && c.disabled() ? 'disabled' : ''}>${c.mini || ''}<b>${esc(c.label)}</b>${c.sub ? `<span>${esc(c.sub)}</span>` : ''}</button>`).join('')}</div></div></div></div>`;
+    $('modal').querySelectorAll('.opt').forEach(b => b.onclick = () => {
+      const c = e.choices[+b.dataset.i]; $('modal').innerHTML = ''; showing = false;
+      c.fn && c.fn(); renderHud(); syncRooms(); last = performance.now(); pump();
+    });
+  }
+
+  // ═════════ 성 그리기 ═════════
+  const DECOR = {
+    gate: '<div class="dec"></div><div class="banner-wolf"></div>', lumber: '<div class="dec"></div>', kitchen: '<div class="dec"></div>',
+    forge: '<div class="dec"></div><div class="anvil"></div>', barracks: '<div class="dec"></div><div class="dummy"></div>', dorm: '<div class="dec"></div>',
+    parlor: '<div class="dec"></div>', nursery: '<div class="cradle" id="cradle"></div>',
+  };
+  function layoutGeo() {
+    const W = world.clientWidth, pad = 10, gap = 6, skyH = 92, yardH = 62, rowH = 100;
+    const cw = (W - pad * 2 - gap * 2) / 3;
+    const g = { W, yard: { x: pad, y: skyH, w: W - pad * 2, h: yardH }, rooms: {} };
+    const top0 = skyH + yardH + 10;
+    K.layout.forEach((row, r) => row.forEach((_, c) => { g.rooms[`r${r}c${c}`] = { x: pad + c * (cw + gap), y: top0 + r * (rowH + gap), w: cw, h: rowH }; }));
+    g.H = top0 + 4 * (rowH + gap) + 8;
+    g.wall = { x: pad - 6, y: top0 - 6, w: W - pad * 2 + 12, h: 4 * (rowH + gap) + 6 };
+    return g;
+  }
+  function buildCastle() {
+    geo = layoutGeo();
+    world.style.height = geo.H + 'px';
+    world.querySelectorAll('.yard,.keepwall,.room').forEach(e => e.remove());
+    const y = geo.yard;
+    world.insertAdjacentHTML('beforeend', `<div class="yard" style="left:${y.x}px;top:${y.y}px;width:${y.w}px;height:${y.h}px"><div class="tag">안뜰 · 대기</div></div>
+      <div class="keepwall" style="left:${geo.wall.x}px;top:${geo.wall.y}px;width:${geo.wall.w}px;height:${geo.wall.h}px"></div>`);
+    for (const [slot, r] of Object.entries(geo.rooms)) {
+      const t = typeOf(slot);
+      world.insertAdjacentHTML('beforeend', t
+        ? `<div class="room r-${t}" data-s="${slot}" style="left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px"><div class="light"></div>${DECOR[t] || ''}<div class="floor"></div><div class="tag">${R[t].name}<span class="cap"></span></div><div class="out"></div>${R[t].res ? '<div class="prog"><i></i></div>' : ''}</div>`
+        : `<div class="room empty" data-s="${slot}" style="left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px"><div class="build"><div><b>＋</b>짓기</div></div></div>`);
+    }
+    world.querySelectorAll('.room').forEach(el => el.addEventListener('click', () => tapSlot(el.dataset.s)));
+    sizeSnow(); syncRooms();
+  }
+  function syncRooms() {
+    if (!geo) return;
+    const selF = G.sel && G.folk.find(x => x.id === G.sel);
+    world.querySelectorAll('.room').forEach(el => {
+      const s = el.dataset.s, t = typeOf(s), r = R[t], here = at(s);
+      const raidHere = G.raid && typeOf(s) === 'gate';
+      el.classList.toggle('raid', !!raidHere);
+      const can = selF && t && r.cap && (here.length < r.cap || selF.room === s);
+      el.classList.toggle('can', !!can); el.classList.toggle('nope', !!(selF && !can));
+      if (!t) return;
+      el.querySelector('.cap').textContent = r.cap ? `${here.length}/${r.cap}` : '';
+      let out = '';
+      if (r.res) out = `+${rateOf(s).toFixed(1)}/일`;
+      else if (t === 'gate') out = `방어 ${Math.round(sum(working(s), 'str') + 6)}`;
+      else if (t === 'dorm') out = `정원 +${r.pop}`;
+      else if (t === 'barracks') out = working(s).length ? '훈련 중' : '';
+      el.querySelector('.out').textContent = out;
+    });
+    const cr = $('cradle');
+    if (cr) cr.innerHTML = working(slotOf('nursery')).length ? '<span class="zz">z z</span>' : '<span class="cry">으앙!</span>';
+    // 습격 체력 바
+    world.querySelectorAll('.raidbars').forEach(e => e.remove());
+    if (G.raid) {
+      const r = geo.rooms[slotOf('gate')], rd = G.raid;
+      const bar = (label, v, max, cls) => `<div class="rb"><span>${label}</span><div class="raidbar ${cls}"><i style="width:${Math.max(0, v / max * 100)}%"></i></div><span class="num">${Math.max(0, Math.ceil(v))}/${max}</span></div>`;
+      world.insertAdjacentHTML('beforeend', `<div class="raidbars" style="left:${r.x + 6}px;top:${r.y + 30}px;width:${r.w - 12}px">${bar('호르칸', rd.hp, rd.max, '')}${bar('성문', rd.gateHp, GATE_HOLD, 'gatebar')}</div>`);
+    }
+  }
+  function pop(slot, text, color) {
+    const r = geo.rooms[slot]; if (!r) return;
+    const el = document.createElement('div'); el.className = 'pop'; el.textContent = text; el.style.color = color;
+    el.style.left = (r.x + r.w / 2 - 22) + 'px'; el.style.top = (r.y + 30) + 'px'; world.appendChild(el); setTimeout(() => el.remove(), 1400);
+  }
+  function clash(slot) {
+    const r = geo.rooms[slot]; const el = document.createElement('div'); el.className = 'clash'; el.textContent = '챙!';
+    el.style.left = (r.x + r.w * (0.3 + Math.random() * 0.4)) + 'px'; el.style.top = (r.y + 44) + 'px'; world.appendChild(el); setTimeout(() => el.remove(), 600);
+  }
+
+  // 사람 모형: 몸 색 = 가장 높은 능력치
+  function figHTML(f, kind) {
+    const hair = f.hero ? '#2A2220' : f.id === 'ottilie' ? '#C9C6C0' : kind === 'raider' || f.raiderLook ? '#3A2B20' : '#6B4A30';
+    const body = kind === 'leo' ? '#2F6F6A' : kind === 'raider' ? '#8E2F2A' : f.hero ? '#2E2E36' : BODY[best(f)];
+    return `<div class="hair" style="background:${hair}"></div><div class="h"></div><div class="b" style="background:${body}${f.hero ? ';box-shadow:inset 0 3px 0 #B9A889' : ''}"></div><div class="l a"></div><div class="l c"></div>${kind ? '' : `<div class="hpb"><i></i></div>`}<div class="nm">${esc(f.name)}</div>`;
+  }
+  function areaOf(f) {
+    if (f.room && geo.rooms[f.room]) { const r = geo.rooms[f.room]; return { x0: r.x + 16, x1: r.x + r.w - (typeOf(f.room) === 'nursery' ? 66 : 18), floor: r.y + r.h - 9 }; }
+    const y = geo.yard; return { x0: y.x + 14, x1: y.x + y.w - 14, floor: y.y + y.h - 4 };
+  }
+  function ensureFig(id, f, kind) {
+    let o = figs.get(id);
+    if (!o) {
+      const el = document.createElement('div'); el.className = 'fig' + (kind ? ' npc ' + kind : ''); el.innerHTML = figHTML(f, kind); world.appendChild(el);
+      const a = areaOf(f); o = { el, x: a.x0 + Math.random() * (a.x1 - a.x0), tx: null, wait: 0, room: f.room, kind };
+      figs.set(id, o);
+      if (!kind) bindDrag(el, id);
+    }
+    return o;
+  }
+  function animate(dt) {
+    if (!G || !geo) return;
+    const alive = new Set();
+    for (const f of G.folk) {
+      if (f.hero && away()) continue;
+      alive.add(f.id);
+      const o = ensureFig(f.id, f), a = areaOf(f);
+      if (o.room !== f.room) { o.room = f.room; o.x = a.x0 + Math.random() * (a.x1 - a.x0); o.tx = null; }
+      if (o.dragging) continue;
+      const working = f.room && !f.hurt && !(G.raid && typeOf(f.room) === 'gate');
+      if (o.wait > 0) o.wait -= dt;
+      else if (o.tx == null) o.tx = a.x0 + Math.random() * (a.x1 - a.x0);
+      else { const dx = o.tx - o.x, st = 0.03 * dt; if (Math.abs(dx) <= st) { o.x = o.tx; o.tx = null; o.wait = working ? 1400 + Math.random() * 2000 : 600 + Math.random() * 1600; } else o.x += Math.sign(dx) * st; }
+      o.x = Math.max(a.x0, Math.min(a.x1, o.x));
+      o.el.style.left = o.x + 'px'; o.el.style.top = (a.floor - 38) + 'px';
+      o.el.classList.toggle('walk', o.tx != null && o.wait <= 0);
+      o.el.classList.toggle('work', !!(working && o.tx == null));
+      o.el.classList.toggle('hurt', !!f.hurt);
+      o.el.classList.toggle('sel', G.sel === f.id);
+      o.el.querySelector('.hpb i').style.width = f.hp + '%';
+    }
+    // 레오폴트: 응접실이 비면 안뜰을 엿보며 다닌다
+    const leoIn = working(slotOf('parlor')).length > 0, ps = slotOf('parlor');
+    const leo = ensureFig('__leo', { name: '레오폴트', room: leoIn ? ps : null }, 'leo'); alive.add('__leo');
+    const la = areaOf({ room: leoIn ? ps : null });
+    if (leo.room !== (leoIn ? ps : null)) { leo.room = leoIn ? ps : null; leo.x = la.x0 + 10; leo.tx = null; leo.el.querySelector('.eye')?.remove(); if (!leoIn) leo.el.insertAdjacentHTML('beforeend', '<span class="eye">엿보는 중</span>'); }
+    if (leoIn) { leo.x = la.x1 - 6; leo.el.classList.remove('walk'); }
+    else { if (leo.tx == null) leo.tx = la.x0 + Math.random() * (la.x1 - la.x0); const dx = leo.tx - leo.x, st = 0.025 * dt; if (Math.abs(dx) <= st) leo.tx = null; else leo.x += Math.sign(dx) * st; leo.el.classList.add('walk'); }
+    leo.el.style.left = leo.x + 'px'; leo.el.style.top = (la.floor - 38) + 'px';
+    // 호르칸
+    for (let i = 0; i < 3; i++) {
+      const id = '__raider' + i;
+      if (G.raid) {
+        const o = ensureFig(id, { name: i === 1 ? '호르칸' : '' }, 'raider'); alive.add(id);
+        const r = geo.rooms[slotOf('gate')];
+        const tx = r.x + r.w - 18 - i * 16; o.x += (tx - o.x) * Math.min(1, dt / 160);
+        o.el.style.left = o.x + 'px'; o.el.style.top = (r.y + r.h - 9 - 38) + 'px'; o.el.classList.add('work');
+      }
+    }
+    for (const [id, o] of figs) if (!alive.has(id)) { o.el.remove(); figs.delete(id); }
+  }
+
+  // 끌어다 놓기 (+ 탭으로 고르기)
+  function bindDrag(el, id) {
+    let sx, sy, moved = false, pid = null;
+    el.addEventListener('pointerdown', e => {
+      e.stopPropagation(); pid = e.pointerId; el.setPointerCapture(pid); sx = e.clientX; sy = e.clientY; moved = false;
+    });
+    el.addEventListener('pointermove', e => {
+      if (e.pointerId !== pid) return;
+      if (!moved && Math.hypot(e.clientX - sx, e.clientY - sy) > 6) { moved = true; G.sel = id; figs.get(id).dragging = true; el.classList.add('drag'); syncRooms(); }
+      if (moved) { const b = world.getBoundingClientRect(); el.style.left = (e.clientX - b.left) + 'px'; el.style.top = (e.clientY - b.top - 30) + 'px'; }
+    });
+    const up = e => {
+      if (e.pointerId !== pid) return; pid = null;
+      const o = figs.get(id); el.classList.remove('drag');
+      if (!moved) { G.sel = G.sel === id ? null : id; renderPanel(); syncRooms(); return; }
+      o.dragging = false;
+      const b = world.getBoundingClientRect(), px = e.clientX - b.left, py = e.clientY - b.top;
+      const slot = Object.entries(geo.rooms).find(([, r]) => px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h)?.[0];
+      const y = geo.yard;
+      if (slot) assign(id, slot); else if (px >= y.x && px <= y.x + y.w && py >= y.y - 20 && py <= y.y + y.h) { G.folk.find(f => f.id === id).room = null; G.sel = null; }
+      else G.sel = null;
+      renderPanel(); syncRooms();
+    };
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  }
+  function assign(id, slot) {
+    const f = G.folk.find(x => x.id === id), t = typeOf(slot);
+    G.sel = null;
+    if (!t || !R[t].cap) return note(t ? `${R[t].name}에는 일할 자리가 없다.` : '빈 칸이다. 먼저 방을 지어야 한다.');
+    if (f.hurt) return note(`${f.name}은(는) 아직 다쳐 있다.`);
+    if (f.room !== slot && at(slot).length >= R[t].cap) return note(`${R[t].name}은(는) 자리가 없다.`);
+    f.room = slot;
+    const fit = R[t].stat ? f[R[t].stat] : 0;
+    note(`${f.name} → ${R[t].name}${R[t].stat ? ` (${STAT[R[t].stat]} ${Math.round(fit)})` : ''}`);
+  }
+  let noteMsg = '', noteT = 0;
+  function note(t) { noteMsg = t; noteT = performance.now(); renderPanel(); }
+  function tapSlot(slot) {
+    if (G.sel) { assign(G.sel, slot); renderPanel(); syncRooms(); return; }
+    if (!typeOf(slot)) return buildSheet(slot);
+    const t = R[typeOf(slot)]; note(`${t.name} — ${t.desc}`);
+  }
+  function buildSheet(slot) {
+    const opts = Object.entries(R).filter(([, r]) => !r.fixed);
+    event({ eyebrow: '빈 칸', title: '무엇을 지을까', text: `금화 ${Math.floor(G.res.gold)}닢`, grid: true, choices: [
+      ...opts.map(([k, r]) => ({ mini: `<div class="mini r-${k}">${DECOR[k] || ''}<div class="floor" style="position:absolute;left:0;right:0;bottom:0;height:6px;background:#5A4A3A"></div></div>`, label: `${r.name} · 금화 ${r.cost}`, sub: r.desc, disabled: () => G.res.gold < r.cost,
+        fn: () => { G.res.gold -= r.cost; G.rooms[slot] = k; say(`${r.name}을(를) 지었다.`); buildCastle(); } })),
+      { label: '그만둔다' },
+    ] });
+  }
+
+  // ═════════ HUD ═════════
+  const ICON = {
+    food: '<svg viewBox="0 0 24 24"><ellipse cx="12" cy="14" rx="9" ry="6" fill="#C98B4E"/><ellipse cx="12" cy="12" rx="7" ry="4" fill="#E2B074"/></svg>',
+    wood: '<svg viewBox="0 0 24 24"><rect x="3" y="12" width="18" height="6" rx="3" fill="#8A6640"/><rect x="5" y="6" width="14" height="6" rx="3" fill="#A57D4F"/><circle cx="19" cy="15" r="2.4" fill="#D9B98A"/></svg>',
+    gold: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="#DDB95E"/><circle cx="12" cy="12" r="5" fill="none" stroke="#A9852F" stroke-width="1.6"/></svg>',
+    folk: '<svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="4" fill="#EBC9A8"/><rect x="6" y="12" width="12" height="9" rx="4" fill="#5A7FA8"/></svg>',
+  };
+  const fmt = v => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1);
+  function renderHud() {
+    if (!G) return;
+    const d = daily(), j = G.julian, nextRaid = K.raids.find(r => r.day > G.day);
+    $('date').textContent = `${dateOf(G.day)} · 인구 대장까지 ${Math.max(0, K.totalDays - G.day)}일`;
+    $('speed').innerHTML = [[0, '❚❚'], [1, '1×'], [2, '2×'], [4, '4×']].map(([v, l]) => `<button data-sp="${v}" class="${G.speed === v ? 'on' : ''}" aria-label="속도 ${l}">${l}</button>`).join('');
+    $('speed').querySelectorAll('button').forEach(b => b.onclick = () => { G.speed = +b.dataset.sp; renderHud(); });
+    $('res').innerHTML = `<div class="pill">${ICON.food}<b>${Math.floor(G.res.food)}</b><span class="${d.food >= 0 ? 'up' : 'dn'}">식량 ${fmt(d.food)}</span></div>
+      <div class="pill">${ICON.wood}<b>${Math.floor(G.res.wood)}</b><span class="${d.wood >= 0 ? 'up' : 'dn'}">장작 ${fmt(d.wood)}</span></div>
+      <div class="pill">${ICON.gold}<b>${Math.floor(G.res.gold)}</b><span>금화 ${fmt(d.gold)}</span></div>
+      <div class="pill">${ICON.folk}<b>${G.folk.length}/${popCap()}</b><span>습격 ${G.raidsWon}승</span></div>`;
+    $('crib').innerHTML = `<img src="media/julian.webp" alt="율리안">
+      <div class="meter m-health ${j.health < 30 ? 'warn' : ''}">율리안 건강 ${Math.round(j.health)}<div class="t"><i style="width:${j.health}%"></i></div></div>
+      <div class="meter m-bond">애착 ${Math.round(j.bond)}<div class="t"><i style="width:${j.bond}%"></i></div></div>
+      <div class="meter m-sus ${G.sus > 70 ? 'warn' : ''}">의심 ${Math.round(G.sus)}<div class="t"><i style="width:${G.sus}%"></i></div></div>`;
+    $('banner').innerHTML = G.raid ? `<div class="banner">${esc(G.raid.name)} 습격 중! 힘센 영지민을 성문으로. 성문이 비면 호르칸이 성문을 부순다 — 성문 버팀 ${Math.ceil(G.raid.gateHp)}/${GATE_HOLD}</div>`
+      : nextRaid && nextRaid.day - G.day <= 3 ? `<div class="banner">경보: ${esc(nextRaid.name)} ${nextRaid.day - G.day}일 뒤. 성문(왼쪽 위)에 힘센 영지민을.</div>`
+      : G.day < G.blizzardUntil ? `<div class="banner cold">눈보라 — 장작 소모 두 배 (${G.blizzardUntil - G.day}일)</div>`
+      : away() ? `<div class="banner cold">엘레노어는 수도에 있다 (${G.absentUntil - G.day}일 뒤 귀환)</div>` : '';
+    renderPanel(); syncRooms();
+    world.querySelectorAll('.prog i').forEach(i => { i.style.width = (acc / DAY_MS * 100) + '%'; });
+  }
+  function renderPanel() {
+    const selF = G.sel && G.folk.find(x => x.id === G.sel);
+    const fresh = performance.now() - noteT < 3500 ? noteMsg : '';
+    $('panel').innerHTML = selF
+      ? `<div class="who"><b>${esc(selF.name)} <span style="font-weight:400;color:var(--muted);font-size:12px">${esc(selF.role)}</span></b><button class="btn" id="toYard">안뜰로</button></div>
+         <div class="stats3"><span>힘 <b>${selF.str.toFixed(1)}</b></span><span>손재주 <b>${selF.dex}</b></span><span>마음 <b>${selF.heart}</b></span><span>체력 <b>${Math.round(selF.hp)}</b></span></div>
+         <p class="hint">${selF.hurt ? `부상 — ${selF.hurt}일 뒤 회복` : '빛나는 방을 누르면 그 방에서 일한다. 끌어다 놓아도 된다.'}</p>`
+      : `<p class="hint">${fresh ? esc(fresh) : '영지민을 끌어다 방에 놓는다. 몸 색 = 잘하는 일 — <span style="color:#E0913E">주황 힘</span> · <span style="color:#DDB95E">노랑 손재주</span> · <span style="color:#63B585">초록 마음</span>'}</p>`;
+    $('panel').insertAdjacentHTML('beforeend', `<div class="log">${G.log.slice(0, 3).map(l => `<div>${esc(l)}</div>`).join('')}</div>`);
+    $('toYard')?.addEventListener('click', () => { selF.room = null; G.sel = null; renderPanel(); syncRooms(); });
+  }
+
+  // 눈
+  const snow = $('snow'), sctx = snow.getContext('2d'); let flakes = [];
+  function sizeSnow() { const dpr = devicePixelRatio || 1; snow.width = world.clientWidth * dpr; snow.height = (geo?.H || 600) * dpr; sctx.setTransform(dpr, 0, 0, dpr, 0, 0); flakes = Array.from({ length: 70 }, () => ({ x: Math.random() * world.clientWidth, y: Math.random() * 160, s: 0.6 + Math.random() * 1.6, v: 0.01 + Math.random() * 0.03 })); }
+  function drawSnow(dt) {
+    const heavy = G && G.day < G.blizzardUntil;
+    sctx.clearRect(0, 0, snow.width, snow.height); sctx.fillStyle = 'rgba(255,255,255,.8)';
+    for (const f of flakes) { f.y += f.v * dt * (heavy ? 3 : 1); f.x += (heavy ? 0.06 : 0.01) * dt; if (f.y > 156) { f.y = -4; f.x = Math.random() * world.clientWidth; } if (f.x > world.clientWidth) f.x = 0; sctx.beginPath(); sctx.arc(f.x, f.y, f.s, 0, 7); sctx.fill(); }
+  }
+
+  let lastF = performance.now();
+  function frame(now) {
+    const dt = Math.min(60, now - lastF); lastF = now;
+    animate(dt); drawSnow(dt);
+    if (G && !G.raid && !showing && G.speed) world.querySelectorAll('.prog i').forEach(i => { i.style.width = Math.min(100, (acc / DAY_MS * 100)) + '%'; });
+    requestAnimationFrame(frame);
+  }
+  addEventListener('resize', () => { if (G) buildCastle(); });
+  // 브라우저 검수용 손잡이
+  window.__keep09 = { get G() { return G; }, startRaid, raidTick, assign };
+  newGame(); renderHud(); requestAnimationFrame(frame);
+})();
+</script>
