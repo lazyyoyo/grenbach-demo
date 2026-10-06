@@ -48,7 +48,7 @@
   const choice = (label, fx = {}, cost = {}, extra = {}) => ({label,fx,cost,...extra});
   const events = [
     ...['문 앞의 가족','눈 녹은 길의 손님','갈 곳 없는 장인','마지막 마차'].map((title,i) => ({id:`refugee${i}`,kind:'refugee',day:[6,36,68,94][i],title,text:'성문 밖에 사람이 기다린다. 빈 잠자리가 있다면 함께 겨울을 날 수 있다.',choices:[choice('식량 8을 나누고 맞는다',{satisfaction:3},{food:8},{recruit:true}),choice('길에 쓸 식량만 준다',{xp:2},{food:3}),choice('문을 닫는다',{satisfaction:-3})]})),
-    ...['소금 장수','장작 수레','겨울 비축상'].map((title,i) => ({id:`merchant${i}`,kind:'merchant',day:[12,48,85][i],title,text:'상인이 마당에 짐을 풀었다. 봄의 값은 겨울에도 같지 않다.',choices:[choice('식량 40을 산다',{food:40},{gold:16}),choice('장작 50을 산다',{wood:50},{gold:18}),choice('다음을 기약한다')]})),
+    ...['소금 장수','장작 수레','겨울 비축상'].map((title,i) => ({id:`merchant${i}`,kind:'merchant',day:[12,48,85][i],title,text:'상인이 마당에 짐을 풀었다. 봄의 값은 겨울에도 같지 않다.',choices:[choice('식량 40을 산다',{food:40},{gold:16}),choice('장작 50을 산다',{wood:50},{gold:18}),choice('식량 30을 판다',{gold:12},{food:30}),choice('장작 30을 판다',{gold:10},{wood:30}),choice('다음을 기약한다')]})),
     ...['여름 감찰','겨울 감찰'].map((title,i) => ({id:`inspection${i}`,kind:'inspection',day:[45,105][i],title,text:'감찰관은 방 사이의 거리를 재고 인구 대장을 펼친다. 요람실과 응접실이 맞닿아 있으면 의심이 15 오른다.',choices:[choice('정돈한 장부를 내민다',{sus:-8},{gold:15}),choice('있는 그대로 답한다',{sus:8})]})),
     ...[
       ['새 도끼',10,'벌목꾼이 닳은 도끼날을 내민다.',{wood:18}],
