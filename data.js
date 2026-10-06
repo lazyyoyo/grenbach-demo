@@ -10,7 +10,7 @@ window.KEEP = {
     kitchen:  { name: '주방', stat: 'dex', cap: 2, res: 'food', rate: 0.5, cost: 40, desc: '식량. 영지민 1명이 하루 0.5씩 먹는다' },
     forge:    { name: '대장간', stat: 'dex', cap: 2, res: 'gold', rate: 0.35, cost: 60, desc: '금화. 방을 짓고 무기를 벼린다' },
     barracks: { name: '병영', stat: 'str', cap: 3, train: true, cost: 70, desc: '머무는 동안 힘이 오른다. 습격 때 함께 싸운다' },
-    dorm:     { name: '숙소', cap: 0, pop: 4, cost: 50, desc: '영지민 정원 +4' },
+    dorm:     { name: '숙소', cap: 3, pop: 4, cost: 50, desc: '영지민 정원 +4. 여기서 쉬면 체력 +15/일 (안뜰은 +6, 일하는 방은 0)' },
     parlor:   { name: '응접실', stat: 'heart', cap: 1, fixed: true, desc: '레오폴트를 상대한다. 마음이 높을수록 의심이 덜 쌓인다' },
     nursery:  { name: '요람실', stat: 'heart', cap: 2, fixed: true, desc: '율리안. 비면 건강이 떨어진다. 습격의 마지막 목표' },
   },

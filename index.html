@@ -1,7 +1,7 @@
 <!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>그렌바흐 대공령 v0.9.1</title>
+<title>그렌바흐 대공령 v0.9.2</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
@@ -117,6 +117,10 @@
   .fig .eye { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; background: var(--seal); color: #fff; border-radius: 6px; padding: 0 4px; white-space: nowrap; }
   .fig.raider .b { background: #8E2F2A !important; }
   .fig.raider .hair { background: #3A2B20 !important; height: 8px; }
+  .room .pv { position: absolute; left: 6px; right: 6px; top: 22px; font-size: 11px; font-weight: 600; color: #FFE3A8; text-shadow: 0 1px 2px #000; pointer-events: none; }
+  button.pill { border: 0; text-align: left; color: inherit; font: inherit; cursor: pointer; }
+  .pill.blink { animation: blink 1s steps(2) infinite; box-shadow: inset 0 0 0 1px var(--seal); }
+  @keyframes blink { 50% { background: rgba(208,74,85,.35); } }
   .picks { display: grid; gap: 4px; }
   .pick { display: flex; gap: 8px; align-items: center; font-size: 13px; padding: 6px 8px; background: var(--stone-2); border-radius: 8px; }
   .fig .eye.cand { background: var(--ember); color: #1A1410; }
@@ -162,7 +166,7 @@
 </style>
 
 <div class="app">
-  <div class="top"><div><h1>그렌바흐 대공령 <small class="ver">v0.9.1</small></h1><div class="date" id="date"></div></div><div class="speed" id="speed"></div></div>
+  <div class="top"><div><h1>그렌바흐 대공령 <small class="ver">v0.9.2</small></h1><div class="date" id="date"></div></div><div class="speed" id="speed"></div></div>
   <div class="res" id="res"></div>
   <div class="crib" id="crib"></div>
   <div id="banner"></div>
@@ -204,7 +208,7 @@
     say('레오폴트 비젠이 성에 묵기 시작했다.');
     buildCastle();
     event({ img: 'media/ottilie.webp', eyebrow: '11월 1일', title: '3월 15일까지, 이 애를 지켜 내세요', text:
-      '영지민을 손가락으로 끌어 방에 놓으면 그 방에서 일한다.\n\n· 요람실(아래 오른쪽)이 비면 율리안이 운다.\n· 응접실이 비면 레오폴트가 성을 엿보고, 의심이 쌓인다.\n· 북쪽에서 호르칸이 내려온다. 싸움은 성문에서만 한다. 성문이 비면 호르칸이 성문을 부수고 요람실로 간다.\n· 빈 칸을 누르면 방을 짓는다.\n\n율리안을 빼앗기면 끝이다.',
+      '영지민을 손가락으로 끌어 방에 놓으면 그 방에서 일한다.\n\n· 요람실(아래 오른쪽)이 비면 율리안이 운다.\n· 응접실이 비면 레오폴트가 성을 엿보고, 의심이 쌓인다.\n· 북쪽에서 호르칸이 내려온다. 싸움은 성문에서만 한다. 성문이 비면 호르칸이 성문을 부수고 요람실로 간다. 충분히 지친 습격대라면 요람실 사람이 율리안을 안고 숨어 버틴다.\n· 일하는 사람은 체력이 차지 않는다. 지치면 안뜰이나 숙소에서 쉬게 한다.\n· 빈 칸을 누르면 방을 짓는다.\n\n율리안을 빼앗기면 끝이다.',
       choices: [{ label: '성으로 들어간다' }] });
     start();
   }
@@ -220,13 +224,19 @@
   const say = t => { G.log.unshift(`${dateOf(G.day)} · ${t}`); G.log.length = Math.min(G.log.length, 20); };
   const sum = (arr, k) => arr.reduce((s, f) => s + f[k], 0);
   const best = f => ['str', 'dex', 'heart'].sort((a, b) => f[b] - f[a])[0];
+  const restOf = f => !f.room ? 6 : typeOf(f.room) === 'dorm' ? 15 : 0;
   function rateOf(slot) { const t = R[typeOf(slot)]; return t && t.res ? sum(working(slot), t.stat) * t.rate : 0; }
+  const eats = () => 0.5 * G.folk.filter(f => !f.away).length;
+  const woodUse = () => (G.day < G.blizzardUntil ? 4 : 2);
+  const made = r => slots().filter(s => R[typeOf(s)]?.res === r).reduce((a, s) => a + rateOf(s), 0);
+  // 지금 수지로 며칠 뒤 바닥나는지 — 마이너스일 때만
+  const daysLeft = (v, per) => per < 0 ? Math.floor(v / -per) : Infinity;
   function daily() {
     const n = G.folk.length;
     const tot = r => slots().filter(s => R[typeOf(s)]?.res === r).reduce((a, s) => a + rateOf(s), 0);
     const care = working(slotOf('nursery')), parlor = working(slotOf('parlor'));
     return {
-      food: tot('food') - 0.5 * n, wood: tot('wood') - (G.day < G.blizzardUntil ? 4 : 2), gold: tot('gold'),
+      food: tot('food') - eats(), wood: tot('wood') - woodUse(), gold: tot('gold'),
       // 레오폴트는 엘레노어와 함께 수도에 가 있으니 그동안 의심이 쌓이지 않는다
       sus: away() ? 0 : 0.6 - sum(parlor, 'heart') * 0.08, bond: sum(care, 'heart') * 0.04 + (care.some(f => f.hero) ? 0.8 : 0), care,
     };
@@ -254,7 +264,8 @@
       if (f.away) continue;
       // 일어날 때 체력 30 — 0으로 일어나면 식량이 0인 동안 곧바로 다시 쓰러져 아무도 주방에 못 서는 굴레에 빠졌다
       if (f.hurt > 0) { f.hurt--; if (!f.hurt) { f.hp = Math.max(f.hp, 30); say(`${f.name}이(가) 몸을 추슬렀다.`); } }
-      f.hp = clamp(f.hp + (G.res.food <= 0 ? -8 : 8));
+      // 체력은 쉬어야 찬다 — 어디서나 저절로 차서 깎인 채 들어온 포로를 병영에 넣어도 곧 다 차 버렸다
+      f.hp = clamp(f.hp + (G.res.food <= 0 ? -8 : restOf(f)));
       if (f.hp <= 0 && !f.hurt) { f.hurt = 4; f.room = null; say(`${f.name}이(가) 굶주려 쓰러졌다.`); }
     }
     const j = G.julian;
@@ -280,15 +291,14 @@
       { label: '간다', sub: '의심 −25 · 엘레노어 10일 부재 (그동안 레오폴트도 없음)', fn: () => { G.sus = clamp(G.sus - 25); G.absentUntil = G.day + 10; eleanor().room = null; say('엘레노어가 레오폴트와 함께 수도로 떠났다.'); } },
       { label: '가지 않는다', sub: '의심 +15', fn: () => { G.sus = clamp(G.sus + 15); say('레오폴트가 수도로 서신을 보냈다.'); } },
     ] });
-    if (d === 45) event({ img: 'media/leopold.webp', eyebrow: '12월 16일', title: '녹색 눈', text: '"요람실 아이 말입니다. 눈 색이 참 드문 녹색이더군요. 몇 달 되었습니까?"', choices: [
-      { label: '"두 달."', sub: '의심 −5', fn: () => { G.sus = clamp(G.sus - 5); } },
-      { label: '"다섯 달. 내 아이다."', sub: '의심 +10 · 애착 +5', fn: () => { G.sus = clamp(G.sus + 10); G.julian.bond = clamp(G.julian.bond + 5); } },
-      { label: '금화 30닢을 쥐여 준다', sub: '의심 −15', disabled: () => G.res.gold < 30, fn: () => { G.res.gold -= 30; G.sus = clamp(G.sus - 15); } },
-    ] });
     if (d === 85) { G.blizzardUntil = d + 12; event({ img: 'media/stills/backdoor.jpg', eyebrow: '1월 25일', title: '긴 눈보라', text: '열이틀 동안 눈보라가 몰아친다. 장작이 두 배로 든다.', choices: [{ label: '벌목장을 챙긴다' }] }); }
   }
   // 받으면 하루 식량 수지가 어떻게 바뀌는지 — "식량 0.5 추가"만으로는 늘어나는 게 소비인지 보상인지 알 수 없었다
-  const eatNote = () => { const f = daily().food; return `식량 하루 ${fmt(f)} → ${fmt(f - 0.5)} (한 사람이 하루 0.5를 먹는다)`; };
+  const eatNote = () => {
+    const f = daily().food, now = daysLeft(G.res.food, f), next = daysLeft(G.res.food, f - 0.5);
+    const tail = next === Infinity ? '' : ` · 식량 바닥까지 ${now === Infinity ? '걱정 없음' : now + '일'} → ${next}일`;
+    return `식량 하루 ${fmt(f)} → ${fmt(f - 0.5)} (한 사람이 하루 0.5를 먹는다)${tail}`;
+  };
   function refugee() {
     if (G.refugeeIdx >= K.refugees.length) return;
     const p = K.refugees[G.refugeeIdx++];
@@ -297,6 +307,7 @@
       { label: '돌려보낸다' },
     ] });
   }
+  const HIDE_MAX = 30; // 성문이 무너졌을 때 호르칸 체력이 이 값 이하여야 요람실에서 숨어 버틸 수 있다
   const GATE_HOLD = 30, GATE_BREAK = 3; // 성문 버팀 30을 1틱(0.9초)에 3씩 — 성문이 비고 약 9초면 부서진다
   // ═════════ 정찰 ═════════
   // 금화 길이 대장간(60)과 습격 전리품뿐이라, 금화를 다 쓰면 숙소도 대장간도 못 짓고 무한 대기에 빠졌다
@@ -383,7 +394,8 @@
     G.res.food = Math.max(0, G.res.food - 8); G.res.wood = Math.max(0, G.res.wood - 8); G.res.gold = Math.max(0, G.res.gold - 15);
     G.sus = clamp(G.sus + 8);
     say(`성문이 부서졌다. 호르칸이 식량·장작·금화를 털었다. 레오폴트가 성벽 위에서 지켜본다. 의심 +8`);
-    if (!working(slotOf('nursery')).length) return endGame('raided');
+    // 요람실 사람이 율리안을 안고 숨는 것은 지칠 대로 지친 습격대에게만 통한다 — 늘 통하면 아무것도 안 해도 겨울을 넘겼다
+    if (!working(slotOf('nursery')).length || rd.hp > HIDE_MAX) return endGame('raided');
     G.julian.health = clamp(G.julian.health - 20);
     event({ eyebrow: '성문 함락', title: `${rd.name}가 요람실 문 앞까지 왔다`, text: '요람실을 지키던 사람이 율리안을 안고 굴뚝 뒤 좁은 틈에 숨었다. 호르칸은 빈 요람을 걷어차고 털어 간 것을 싣고 물러갔다.\n\n율리안 건강 −20 · 식량 −8 · 장작 −8 · 금화 −15 · 의심 +8', choices: [{ label: '성문을 다시 세운다' }] });
     renderHud(); syncRooms();
@@ -467,11 +479,26 @@
     for (const [slot, r] of Object.entries(geo.rooms)) {
       const t = typeOf(slot);
       world.insertAdjacentHTML('beforeend', t
-        ? `<div class="room r-${t}" data-s="${slot}" style="left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px"><div class="light"></div>${DECOR[t] || ''}<div class="floor"></div><div class="tag">${R[t].name}<span class="cap"></span></div><div class="out"></div>${R[t].res ? '<div class="prog"><i></i></div>' : ''}</div>`
+        ? `<div class="room r-${t}" data-s="${slot}" style="left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px"><div class="light"></div>${DECOR[t] || ''}<div class="floor"></div><div class="tag">${R[t].name}<span class="cap"></span></div><div class="out"></div><div class="pv"></div>${R[t].res ? '<div class="prog"><i></i></div>' : ''}</div>`
         : `<div class="room empty" data-s="${slot}" style="left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px"><div class="build"><div><b>＋</b>짓기</div></div></div>`);
     }
     world.querySelectorAll('.room').forEach(el => el.addEventListener('click', () => tapSlot(el.dataset.s)));
     sizeSnow(); syncRooms();
+  }
+  // 고른 사람을 이 방에 놓으면 무엇이 바뀌는지 — 놓기 전에 나아지는지 알 수 있게
+  function preview(f, slot) {
+    const t = typeOf(slot), r = R[t];
+    if (f.room === slot) return '지금 여기';
+    if (at(slot).length >= r.cap) return '자리 없음';
+    if (f.hurt) return '';
+    const v = r.stat ? f[r.stat] : 0;
+    if (r.res) return `+${(v * r.rate).toFixed(1)} ${{ food: '식량', wood: '장작', gold: '금화' }[r.res]}/일`;
+    if (t === 'gate') return `방어 +${Math.round(v)}`;
+    if (t === 'barracks') return '힘 +0.06/일 · 습격 때 출전';
+    if (t === 'parlor') return `의심 하루 −${(v * 0.08).toFixed(2)}`;
+    if (t === 'nursery') return `애착 +${(v * 0.04 + (f.hero ? 0.8 : 0)).toFixed(2)}/일`;
+    if (t === 'dorm') return `쉬며 체력 +15/일`;
+    return '';
   }
   function syncRooms() {
     if (!geo) return;
@@ -487,9 +514,10 @@
       let out = '';
       if (r.res) out = `+${rateOf(s).toFixed(1)}/일`;
       else if (t === 'gate') out = `방어 ${Math.round(sum(defenders(), 'str') + 6)}`;
-      else if (t === 'dorm') out = `정원 +${r.pop}`;
+      else if (t === 'dorm') out = `정원 +${r.pop} · 쉼 +15`;
       else if (t === 'barracks') out = working(s).length ? (G.raid ? '성문에서 싸우는 중' : '훈련 중 · 습격 때 출전') : '';
       el.querySelector('.out').textContent = out;
+      const pv = el.querySelector('.pv'); if (pv) pv.textContent = selF && t && r.cap ? preview(selF, s) : '';
     });
     const cr = $('cradle');
     if (cr) cr.innerHTML = working(slotOf('nursery')).length ? '<span class="zz">z z</span>' : '<span class="cry">으앙!</span>';
@@ -519,7 +547,7 @@
   }
   function areaOf(f) {
     const room = G.raid && typeOf(f.room) === 'barracks' && !f.hurt ? slotOf('gate') : f.room; // 습격 중 병영 사람은 성문에 나가 있는 것으로 그린다
-    if (room && geo.rooms[room]) { const r = geo.rooms[room]; return { x0: r.x + 16, x1: r.x + r.w - (typeOf(room) === 'nursery' ? 66 : 18), floor: r.y + r.h - 9 }; }
+    if (room && geo.rooms[room]) { const r = geo.rooms[room]; return { x0: r.x + 16, x1: r.x + r.w - ({ nursery: 66, parlor: 58 }[typeOf(room)] || 18), floor: r.y + r.h - 9 }; }
     const y = geo.yard; return { x0: y.x + 14, x1: y.x + y.w - 14, floor: y.y + y.h - 4 };
   }
   function ensureFig(id, f, kind) {
@@ -539,11 +567,16 @@
       if ((f.hero && away()) || f.away) continue;
       alive.add(f.id);
       const o = ensureFig(f.id, f), a = areaOf(f);
-      if (o.room !== f.room) { o.room = f.room; o.x = a.x0 + Math.random() * (a.x1 - a.x0); o.tx = null; }
+      if (o.room !== f.room) { o.room = f.room; o.x = a.x0 + Math.random() * (a.x1 - a.x0); o.tx = null; o.wait = 0; }
       if (o.dragging) continue;
       const working = f.room && !f.hurt && !(G.raid && ['gate', 'barracks'].includes(typeOf(f.room)));
       if (o.wait > 0) o.wait -= dt;
-      else if (o.tx == null) o.tx = a.x0 + Math.random() * (a.x1 - a.x0);
+      else if (o.tx == null) {
+        // 같은 방 사람끼리 자리를 나눠 이름표가 겹치지 않게 한다
+        const mates = G.folk.filter(x => x.room === f.room && !x.away && !(x.hero && away())), i = mates.indexOf(f), n = mates.length;
+        const w = (a.x1 - a.x0) / Math.max(1, n), base = a.x0 + w * (i + 0.5);
+        o.tx = Math.max(a.x0, Math.min(a.x1, base + (Math.random() - 0.5) * Math.min(14, w * 0.3)));
+      }
       else { const dx = o.tx - o.x, st = 0.03 * dt; if (Math.abs(dx) <= st) { o.x = o.tx; o.tx = null; o.wait = working ? 1400 + Math.random() * 2000 : 600 + Math.random() * 1600; } else o.x += Math.sign(dx) * st; }
       o.x = Math.max(a.x0, Math.min(a.x1, o.x));
       o.el.style.left = o.x + 'px'; o.el.style.top = (a.floor - 38) + 'px';
@@ -607,7 +640,7 @@
       const y = geo.yard;
       if (slot) assign(id, slot); else if (px >= y.x && px <= y.x + y.w && py >= y.y - 20 && py <= y.y + y.h) { G.folk.find(f => f.id === id).room = null; G.sel = null; }
       else G.sel = null;
-      renderPanel(); syncRooms();
+      renderPanel(); syncRooms(); renderHud();
     };
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
   }
@@ -622,7 +655,7 @@
     note(`${f.name} → ${R[t].name}${R[t].stat ? ` (${STAT[R[t].stat]} ${Math.round(fit)})` : ''}`);
   }
   let noteMsg = '', noteT = 0;
-  function note(t) { noteMsg = t; noteT = performance.now(); renderPanel(); }
+  function note(t) { noteMsg = t; noteT = performance.now(); renderPanel(); renderHud(); } // 배치가 바뀌면 자원 칸의 하루 수지도 바로 바뀌어야 한다
   function tapSlot(slot) {
     if (G.sel) { assign(G.sel, slot); renderPanel(); syncRooms(); return; }
     if (!typeOf(slot)) return buildSheet(slot);
@@ -645,21 +678,32 @@
     folk: '<svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="4" fill="#EBC9A8"/><rect x="6" y="12" width="12" height="9" rx="4" fill="#5A7FA8"/></svg>',
   };
   const fmt = v => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1);
+  // 자원 칸을 누르면 만드는 것과 쓰는 것을 나눠 보여 준다
+  function resNote(r) {
+    const d = daily(), n = G.folk.filter(f => !f.away).length;
+    if (r === 'food') return `식량: 주방이 하루 ${made('food').toFixed(1)}을 만들고, ${n}명이 하루 ${eats().toFixed(1)}을 먹는다(한 사람 0.5). 하루 ${fmt(d.food)}${daysLeft(G.res.food, d.food) < Infinity ? `, ${daysLeft(G.res.food, d.food)}일 뒤 바닥` : ''}. 0이 되면 모두 체력이 하루 8씩 깎인다.`;
+    if (r === 'wood') return `장작: 벌목장이 하루 ${made('wood').toFixed(1)}을 만들고, 성을 데우는 데 하루 ${woodUse()}이 든다(눈보라 때 4). 하루 ${fmt(d.wood)}${daysLeft(G.res.wood, d.wood) < Infinity ? `, ${daysLeft(G.res.wood, d.wood)}일 뒤 바닥` : ''}. 0이 되면 율리안 건강이 하루 10씩 깎인다.`;
+    if (r === 'gold') return `금화: 대장간이 하루 ${made('gold').toFixed(1)}을 만든다. 습격을 막으면 전리품, 정찰을 보내면 금화를 얻는다. 방을 짓는 데 쓴다.`;
+    return `영지민 ${G.folk.length}명 / 정원 ${popCap()}명. 숙소 하나마다 정원 +4. 정원이 차면 새 사람을 받을 수 없다.`;
+  }
   function renderHud() {
     if (!G) return;
     const d = daily(), j = G.julian, nextRaid = K.raids.find(r => r.day > G.day);
     $('date').textContent = `${dateOf(G.day)} · 인구 대장까지 ${Math.max(0, K.totalDays - G.day)}일`;
     $('speed').innerHTML = [[0, '❚❚'], [1, '1×'], [2, '2×'], [4, '4×']].map(([v, l]) => `<button data-sp="${v}" class="${G.speed === v ? 'on' : ''}" aria-label="속도 ${l}">${l}</button>`).join('');
     $('speed').querySelectorAll('button').forEach(b => b.onclick = () => { G.speed = +b.dataset.sp; renderHud(); });
-    $('res').innerHTML = `<div class="pill">${ICON.food}<b>${Math.floor(G.res.food)}</b><span class="${d.food >= 0 ? 'up' : 'dn'}">식량 ${fmt(d.food)}</span></div>
-      <div class="pill">${ICON.wood}<b>${Math.floor(G.res.wood)}</b><span class="${d.wood >= 0 ? 'up' : 'dn'}">장작 ${fmt(d.wood)}</span></div>
-      <div class="pill">${ICON.gold}<b>${Math.floor(G.res.gold)}</b><span>금화 ${fmt(d.gold)}</span></div>
-      <div class="pill">${ICON.folk}<b>${G.folk.length}/${popCap()}</b><span>습격 ${G.raidsWon}승</span></div>`;
+    const fl = daysLeft(G.res.food, d.food), wl = daysLeft(G.res.wood, d.wood);
+    const sub = (per, left) => left === Infinity ? `하루 ${fmt(per)}` : left <= 0 ? '바닥!' : `바닥 ${left}일`;
+    $('res').innerHTML = `<button class="pill ${fl <= 3 || G.res.food <= 0 ? 'blink' : ''}" data-r="food">${ICON.food}<b>${Math.floor(G.res.food)}</b><span class="${d.food >= 0 ? 'up' : 'dn'}">${sub(d.food, fl)}</span></button>
+      <button class="pill ${wl <= 3 || G.res.wood <= 0 ? 'blink' : ''}" data-r="wood">${ICON.wood}<b>${Math.floor(G.res.wood)}</b><span class="${d.wood >= 0 ? 'up' : 'dn'}">${sub(d.wood, wl)}</span></button>
+      <button class="pill" data-r="gold">${ICON.gold}<b>${Math.floor(G.res.gold)}</b><span>하루 ${fmt(d.gold)}</span></button>
+      <button class="pill" data-r="folk">${ICON.folk}<b>${G.folk.length}/${popCap()}</b><span>정원 · 습격 ${G.raidsWon}승</span></button>`;
+    $('res').querySelectorAll('[data-r]').forEach(b => b.onclick = () => { G.sel = null; syncRooms(); note(resNote(b.dataset.r)); });
     $('crib').innerHTML = `<img src="media/julian.webp" alt="율리안">
       <div class="meter m-health ${j.health < 30 ? 'warn' : ''}">율리안 건강 ${Math.round(j.health)}<div class="t"><i style="width:${j.health}%"></i></div></div>
       <div class="meter m-bond">애착 ${Math.round(j.bond)}<div class="t"><i style="width:${j.bond}%"></i></div></div>
       <div class="meter m-sus ${G.sus > 70 ? 'warn' : ''}">의심 ${Math.round(G.sus)}<div class="t"><i style="width:${G.sus}%"></i></div></div>`;
-    $('banner').innerHTML = G.raid ? `<div class="banner">${esc(G.raid.name)} 습격 중! 힘센 영지민을 성문으로. 성문이 비면 호르칸이 성문을 부순다 — 성문 버팀 ${Math.ceil(G.raid.gateHp)}/${GATE_HOLD}</div>`
+    $('banner').innerHTML = G.raid ? `<div class="banner">${esc(G.raid.name)} 습격 중! 힘센 영지민을 성문으로. 성문 버팀 ${Math.ceil(G.raid.gateHp)}/${GATE_HOLD} — 무너질 때 호르칸 체력이 ${HIDE_MAX}을 넘으면 요람실이 털린다</div>`
       : G.res.food <= 0 ? `<div class="banner">식량이 바닥났다. 영지민이 굶주려 쓰러진다 — 주방에 손재주 좋은 사람을.</div>`
       : nextRaid && nextRaid.day - G.day <= 3 ? `<div class="banner">경보: ${esc(nextRaid.name)} ${nextRaid.day - G.day}일 뒤. 성문(왼쪽 위)에 힘센 영지민을.</div>`
       : G.day < G.blizzardUntil ? `<div class="banner cold">눈보라 — 장작 소모 두 배 (${G.blizzardUntil - G.day}일)</div>`
@@ -669,7 +713,7 @@
   }
   function renderPanel() {
     const selF = G.sel && G.folk.find(x => x.id === G.sel);
-    const fresh = performance.now() - noteT < 3500 ? noteMsg : '';
+    const fresh = performance.now() - noteT < 6000 ? noteMsg : '';
     $('panel').innerHTML = selF
       ? `<div class="who"><b>${esc(selF.name)} <span style="font-weight:400;color:var(--muted);font-size:12px">${esc(selF.role)}</span></b><button class="btn" id="toYard">안뜰로</button></div>
          <div class="stats3"><span>힘 <b>${selF.str.toFixed(1)}</b></span><span>손재주 <b>${selF.dex}</b></span><span>마음 <b>${selF.heart}</b></span><span>체력 <b>${Math.round(selF.hp)}</b></span></div>
@@ -699,7 +743,7 @@
   }
   addEventListener('resize', () => { if (G) buildCastle(); });
   // 브라우저 검수용 손잡이
-  window.__keep09 = { get G() { return G; }, startRaid, raidTick, assign, buildCastle };
+  window.__keep09 = { get G() { return G; }, startRaid, raidTick, assign, buildCastle, dayTick, sendScouts, daily, popCap, newGame, get showing() { return showing; } };
   newGame(); renderHud(); requestAnimationFrame(frame);
 })();
 </script>
