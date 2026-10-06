@@ -11,7 +11,7 @@
     kitchen: { name: '주방', stat: 'dex', cap: 2, res: 'food', cost: 40, desc: '손재주만큼 매일 식량을 만든다.' },
     lumber: { name: '벌목장', stat: 'str', cap: 2, res: 'wood', cost: 40, desc: '힘만큼 장작을 모은다. 겨울 전에 비축하자.' },
     field: { name: '밭', stat: 'str', cap: 2, res: 'food', cost: 30, desc: '봄·여름에만 힘만큼 식량을 생산한다.' },
-    forge: { name: '대장간', stat: 'dex', cap: 2, cost: 55, desc: '손재주로 제작 기간 단축. 무기를 만들어 가방에 보관한다.' },
+    forge: { name: '대장간', stat: 'dex', cap: 2, cost: 55, desc: '장인이 일하는 방. 아이가 오래 머물면 다칠 수 있다.' },
     dorm: { name: '숙소(휴식)', cap: 4, pop: 4, cost: 45, desc: '칸수 × 레벨마다 영지민 정원 +4.' },
     storage: { name: '창고', cap: 0, storage: 160, cost: 40, desc: '칸수 × 레벨마다 식량·장작 저장 한도 +160.' },
     barracks: { name: '병영', stat: 'str', cap: 3, cost: 60, desc: '10일마다 힘 +2. 성문 방어에 절반의 힘을 보탠다.' },
@@ -44,7 +44,7 @@
     ['ida','이다','바느질장이',2,6,5,'gossip'],['emil','에밀','사냥꾼',5,4,2,'scout'],
     ['rosa','로자','농부',5,3,4,'northern'],['paul','파울','석공',7,3,1,'steady'],
     ['lena','레나','행상',3,5,6,'warm'],['theo','테오','견습',4,4,4,'frail'],
-  ].map(([id,name,role,str,dex,heart,trait,room=null,named=false,img]) => ({id,name,role,str,dex,heart,trait,room,named,img,hero:id==='eleanor'}));
+  ].map(([id,name,role,str,dex,heart,trait,room=null,named=false,img]) => ({id,name,role,str,dex,heart,trait,room,named,img,hero:id==='eleanor',wis:({eleanor:7,ottilie:6,johanna:5,heinz:3}[id]||1+(str+dex+heart)%10),status:named?'가신':'영지민'}));
   const choice = (label, fx = {}, cost = {}, extra = {}) => ({label,fx,cost,...extra});
   const events = [
     ...['문 앞의 가족','눈 녹은 길의 손님','갈 곳 없는 장인','마지막 마차'].map((title,i) => ({id:`refugee${i}`,kind:'refugee',day:[6,36,68,94][i],title,text:'성문 밖에 사람이 기다린다. 빈 잠자리가 있다면 함께 겨울을 날 수 있다.',choices:[choice('식량 8을 나누고 맞는다',{satisfaction:3},{food:8},{recruit:true}),choice('길에 쓸 식량만 준다',{xp:2},{food:3}),choice('문을 닫는다',{satisfaction:-3})]})),
@@ -63,9 +63,9 @@
     ...[['봄의 종자',3,{food:20}],['가을의 창고',73,{wood:25}],['긴 밤의 등불',92,{health:6}]].map(([title,day,fx],i) => ({id:`season${i}`,kind:'season',day,title,text:'계절이 바뀌면 성 안의 일도 달라진다. 오늘 할 일을 미리 정해 두자.',choices:[choice('함께 준비한다',fx,{gold:8}),choice('지금은 아껴 둔다')]})),
   ].sort((a,b) => a.day-b.day);
   return {
-    version: 4, totalDays:120, dayMs:15000, seasons:['봄','여름','가을','겨울'],
+    version: 5, totalDays:720, dayMs:4000, seasons:['봄','여름','가을','겨울'],
     balance:{start:{food:45,wood:40,gold:110},popBase:6,storageBase:150,foodPerPerson:.65,
-      woodUse:[1,.5,2,4],levelXP:[0,25,65,120,190],levelMult:[1,1.5,2],
+      woodUse:[1,.5,2,4],levelXP:[0,25,65,120,190],levelMult:[1,1.5,2],lessonRate:.35,
       raidHP:2.0,raidBonus:[4,0,20,38],raidVariance:.45,raidDamage:.6,bossBonus:24,defenseScale:1.60,
       yearScale:.18,healthWithoutCare:5,starvationDamage:5,coldDamage:4,taxPerPerson:5},
     rooms,traits,folk,events,

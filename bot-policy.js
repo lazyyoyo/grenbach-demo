@@ -1,6 +1,7 @@
 (function(root,factory){if(typeof module==='object'&&module.exports)module.exports=factory(require('./data'),require('./sim-core'));else root.KeepPolicy=factory(root.KEEP,root.KeepSim);})(typeof window==='undefined'?globalThis:window,(K,Sim)=>{
   // 정책은 공개된 정보만 보고 명령 목록을 낸다. 생존 보정/시드별 분기는 없다.
   function policy(state,kind='average'){
+    if(state.p1)return prototypePolicy(state,kind);
     let s=state;const actions=[];
     const push=a=>{if(Sim.validate(s,a))return false;actions.push(a);s=Sim.act(s,a).state;return true;};
     if(kind==='idle'){
@@ -32,7 +33,7 @@
     for(const [slot,r] of Object.entries(s.rooms))if(r?.fire)push({type:'extinguish',slot});
     const upgrade=(type,max)=>{const slot=Sim.slotOf(s,type);if(slot&&s.rooms[slot].level<max)push({type:'upgrade',slot});};
     // 평균: 필요한 방을 하나씩 확장. 고수: 무기와 수비 성장에 먼저 투자.
-    if(s.day>25)upgrade('gate',expert?3:2);
+    if(s.day>25)upgrade('gate',3);
     if(expert&&s.day>60&&s.wallLevel<3)push({type:'wall'});
     if(s.res.food<35)upgrade('kitchen',2);
     if(expert){
@@ -49,5 +50,30 @@
     }
     return actions;
   }
+  function prototypePolicy(state,kind){
+    let s=state;const actions=[],expert=kind==='expert';
+    const push=a=>{const r=Sim.act(s,a);if(r.error)return false;s=r.state;actions.push(a);return true;};
+    if(s.pending){const e=Sim.eventFor(s,s.pending);let index=kind==='idle'?e.choices.length-1:0;if(Sim.validate(s,{type:'choice',index}))index=e.choices.length-1;push({type:'choice',index});}
+    if(kind==='idle')return actions;
+    if(s.queue.length){push({type:'openRequest',id:s.queue[0].id});push({type:'choice',index:0});}
+    const build=type=>{if(Sim.slotOf(s,type))return;const slot=Object.keys(s.rooms).find(id=>s.rooms[id]===null&&id!==s.residence.slot&&Sim.unlocked(s,id));if(slot)push({type:'build',slot,room:type});};
+    build('dorm');
+    const assign=(id,type)=>{const f=s.folk.find(f=>f.id===id),slot=Sim.slotOf(s,type);if(f&&slot&&f.room!==slot)push({type:'assign',id,slot});};
+    assign('ottilie','nursery');assign('johanna','parlor');assign('bruno','lumber');assign('liesel','kitchen');assign('heinz','gate');assign('eleanor','gate');
+    for(const f of s.folk.slice(6))assign(f.id,f.heart>=6?'parlor':f.dex>=5?'kitchen':f.str>=5?'barracks':'lumber');
+    if(s.gateHP<Sim.gateMax(s)*(expert?.95:.45))push({type:'repair'});
+    const upgrade=(type,max)=>{const slot=Sim.slotOf(s,type);if(slot&&s.rooms[slot].level<max)push({type:'upgrade',slot});};
+    if(s.day>20||s.year>1)upgrade('gate',3);
+    if(s.res.food<50)upgrade('kitchen',3);
+    if(s.res.wood<50)upgrade('lumber',2);
+    if(s.level>=3){if(s.wallLevel<(expert?3:2))push({type:'wall'});build('barracks');}
+    if(s.res.gold>100)build('storage');
+    if(s.julian.health<60)push({type:'checkup'});
+    if(expert&&s.julian.age>=3&&['outside','r0c1',Sim.slotOf(s,'forge')].includes(s.julian.location))push({type:'recall'});
+    if(s.julian.age>=5&&!s.teacher){push({type:'teacher',id:expert?'eleanor':'ottilie'});if(expert){push({type:'tool',tool:'book'});push({type:'tool',tool:'sword'});}}
+    for(const [slot,r] of Object.entries(s.rooms))if(r?.fire)push({type:'extinguish',slot});
+    return actions;
+  }
+
   return policy;
 });

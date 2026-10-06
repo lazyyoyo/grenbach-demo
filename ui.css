@@ -264,3 +264,14 @@ kbd{font:10px monospace;border:1px solid #4b565a;padding:1px 3px;margin-left:3px
 /* 검수 수정: 빈 칸이 꽉 찬 돌상자로 보여 성이 격자처럼 보이던 문제 → 아직 안 지은 자리는 비계(점선) 느낌으로 */
 .room.empty{background:rgba(24,28,34,.28)!important;border:1px dashed rgba(170,180,190,.35)!important;box-shadow:none!important}
 .room.empty .build{color:rgba(230,233,238,.7)}
+
+/* Prototype 1: growth and danger lead the existing castle layout. */
+.app{grid-template-rows:112px minmax(0,1fr) 52px}
+.hud{grid-template-columns:minmax(330px,1.4fr) minmax(200px,1fr) 170px 250px;gap:18px}
+.julian-hud{display:flex;gap:12px;align-items:center}.julian-hud img{width:72px;height:72px;border-radius:50%;border:2px solid var(--gold);object-fit:cover}.julian-hud b{display:block;font-size:26px}.julian-hud small{display:block;margin-top:6px;font-size:12px}
+.hud .meter{margin:5px 0}.hud .meter label{font-size:12px}.hud .res{display:flex;gap:8px;margin:7px 0}.hud .res small{font-size:11px}.hud .res b{font-size:13px}.time-res>b{font-size:12px}.time-res .speed{display:flex}
+.playfield{grid-template-columns:200px minmax(0,1fr) 292px}.bottom .toolbar{display:flex}.bottom .toolbar button{min-width:90px}.bottom{grid-template-columns:1fr auto}
+#teacher{padding:12px;border-top:1px solid var(--line)}#teacher:empty{display:none}#teacher .opt{padding:7px}.residence{background:#403b4b}.residence p{font-size:11px;margin:35px 8px;color:#e5d8bc}
+.fig.child{transform:scale(.68);transform-origin:bottom center;z-index:8;pointer-events:none}.fig.child .b{background:#d6ae5b!important}.fig.child .nm{font-size:16px;color:#fff2b7}.fig.visitor{opacity:.8}
+#record-text{display:block;width:100%;height:130px;background:#111;color:#eee;font-size:11px}#record-text[hidden]{display:none}.sheet .body>p{white-space:pre-line}
+@media(min-width:1600px){.app{grid-template-rows:112px minmax(0,1fr) 52px}.playfield{grid-template-columns:220px minmax(0,1fr) 320px}}
