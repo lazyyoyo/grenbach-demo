@@ -2,7 +2,8 @@
 // 능력치: str(힘) · dex(솜씨) · heart(마음), 1~10. 하루 = 엔진의 DAY_MS.
 window.KEEP = {
   totalDays: 134, // 겨울 1일 → 봄 1일(황후궁 감찰단 도착)
-  start: { food: 30, wood: 30, gold: 80 },
+  // 성에는 성문·응접실·요람실만 있다. 주방·벌목장은 플레이어가 짓는다 — 아무것도 안 하면 식량 10일·장작 15일 뒤 바닥
+  start: { food: 30, wood: 30, gold: 120 },
   popBase: 6,
   // 밸런스 변수 — 시스템 설계서의 기준 변수와 같은 이름. 값만 바꿔 조정한다
   balance: {
@@ -15,8 +16,8 @@ window.KEEP = {
     injuryDays: 5,
     raidHpK: 1.5, raidAtk: 0.3, defK: 0.5, gateBonus: 6,
     xpBase: 20, xpExp: 2, hpBase: 90, hpPerLv: 10,
-    weaponGoldPerP: 6, weaponWood: 5, durability: 3, armoryCap: 3,
-    mBuy: 1.5, mSell: 0.5,
+    weaponGoldPerP: 6, weaponWood: 5, durability: 3, armoryCap: 3, // 내구도 0이면 부서져 사라진다 (수리 없음)
+    mBuy: 1.5, mSell: 0.5, // 상인이 한 번에 사 가는 양은 지갑(merchant.purse)으로 묶는다
     coldWinter: 2, blizzardCold: 2,
     deathDmg: 30,        // 쓰러진 채 이만큼 더 깎이면 죽는다
     // 의심: 하루 susBase 오르고 응접실 사람의 마음(적성 포함) × susParlor × 방 배수만큼 덜 오른다.
@@ -35,7 +36,7 @@ window.KEEP = {
   },
   // 4층 × 3칸
   layout: [
-    ['gate', 'lumber', 'kitchen'],
+    ['gate', null, null],
     ['parlor', null, null],
     [null, null, null],
     [null, null, 'nursery'],
@@ -45,17 +46,18 @@ window.KEEP = {
     { id: 'ottilie', name: '오틸리에', role: '옛 유모', str: 1, dex: 4, heart: 7, room: 'r3c2', img: 'media/ottilie.webp' },
     { id: 'johanna', name: '요한나', role: '젖어미', str: 2, dex: 3, heart: 6, room: 'r1c0' },
     { id: 'heinz',   name: '하인츠', role: '경비대장', str: 6, dex: 2, heart: 1, room: 'r0c0' },
-    { id: 'bruno',   name: '브루노', role: '나무꾼', str: 5, dex: 2, heart: 2, room: 'r0c1' },
-    { id: 'liesel',  name: '리젤', role: '요리사', str: 1, dex: 6, heart: 3, room: 'r0c2' },
+    { id: 'bruno',   name: '브루노', role: '나무꾼', str: 5, dex: 2, heart: 2, room: null },
+    { id: 'liesel',  name: '리젤', role: '요리사', str: 1, dex: 6, heart: 3, room: null },
   ],
   // 습격대 = 병력 n × 개체 힘 h. 전투력 F = n × h, 체력 = F × raidHpK, 공격/틱 = F × raidAtk
+  // 시작 배치 그대로(방어 27.5)면 2차는 버티고 3차(55일)에 진다. 한 파도마다 방어 +10쯤 키워야 따라간다
   raids: [
     { day: 14, n: 2, h: 6, name: '호르칸 척후대' },
-    { day: 34, n: 3, h: 7, name: '호르칸 약탈대' },
-    { day: 55, n: 4, h: 8, name: '호르칸 기마대' },
-    { day: 78, n: 5, h: 8, name: '얼음강을 건넌 기마대' },
-    { day: 100, n: 6, h: 9, name: '눈보라 속의 대족장' },
-    { day: 122, n: 7, h: 10, name: '호르칸 연합군' },
+    { day: 34, n: 4, h: 7, name: '호르칸 약탈대' },
+    { day: 55, n: 7, h: 8, name: '호르칸 기마대' },
+    { day: 78, n: 7, h: 10, name: '얼음강을 건넌 기마대' },
+    { day: 100, n: 9, h: 10, name: '눈보라 속의 대족장' },
+    { day: 122, n: 11, h: 10, name: '호르칸 연합군' },
   ],
   refugeeDays: [20, 47, 66, 88, 110],
   refugees: [
@@ -83,7 +85,7 @@ window.KEEP = {
     { id: 'spear', name: '창', power: 6 },
     { id: 'sword', name: '장검', power: 10 },
   ],
-  merchant: { days: [10, 30, 50, 70, 90, 110, 130], qty: 20 },
+  merchant: { days: [10, 30, 50, 70, 90, 110, 130], qty: 20, purse: 20 }, // purse = 상인이 한 번 방문에 쓰는 금화
   wanderers: [
     { name: '그레타', role: '빵 굽는 이', str: 2, dex: 7, heart: 3, line: '눈 덮인 방앗간에서 혼자 버티고 있었다. "밀가루만 있으면 뭐든 굽죠."' },
     { name: '에밀', role: '사냥꾼', str: 5, dex: 4, heart: 2, line: '덫을 보러 나왔다가 정찰대와 마주쳤다. 활은 낡았지만 손은 빠르다.' },

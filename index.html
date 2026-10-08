@@ -1,7 +1,7 @@
 <!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>그렌바흐 대공령 v0.9.5</title>
+<title>그렌바흐 대공령 v0.9.6</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
@@ -171,7 +171,7 @@
 </style>
 
 <div class="app">
-  <div class="top"><div><h1>그렌바흐 대공령 <small class="ver">v0.9.5</small></h1><div class="date" id="date"></div></div><div class="speed" id="speed"></div></div>
+  <div class="top"><div><h1>그렌바흐 대공령 <small class="ver">v0.9.6</small></h1><div class="date" id="date"></div></div><div class="speed" id="speed"></div></div>
   <div class="res" id="res"></div>
   <div class="crib" id="crib"></div>
   <div id="banner"></div>
@@ -214,7 +214,7 @@
     say('레오폴트 비젠이 성에 묵기 시작했다.');
     buildCastle();
     event({ img: 'media/ottilie.webp', eyebrow: '겨울 1일', title: '봄이 오면 황후궁 감찰단이 온다', text:
-      '죽은 줄 알았던 황자를 찾는 감찰단이 봄 1일(겨울 134일 뒤)에 온다. 먼저 와서 묵는 레오폴트가 보고 들은 것(의심)이 그대로 감찰단의 손에 넘어간다.\n· 의심 40 미만이면 감찰단은 빈손으로 돌아간다.\n· 의심 70 이상이면 성을 샅샅이 뒤진다.\n\n영지민을 손가락으로 끌어 방에 놓으면 그 방에서 일한다. 몸 색과 방이 맞으면(적성) 25% 더 한다.\n\n· 요람실(아래 오른쪽)이 비면 율리안이 운다.\n· 응접실이 비면 레오폴트가 성을 엿보고, 의심이 쌓인다.\n· 북쪽에서 호르칸이 내려온다. 싸움은 성문에서만 한다. 성문이 비면 호르칸이 성문을 부수고 요람실로 간다.\n· 일하는 사람은 체력이 차지 않는다. 지치면 안뜰이나 숙소에서 쉬게 한다. 쓰러진 채 굶으면 죽는다.\n· 겨울은 추위 2. 장작이 하루 2씩 든다. 눈보라면 4.\n· 빈 칸을 누르면 2일에 걸쳐 방을 짓고, 지은 방을 누르면 3일에 걸쳐 올린다. 대장간에서 무기를 벼려 성문 무기고에 둔다.\n\n율리안을 빼앗기면 끝이다.',
+      '죽은 줄 알았던 황자를 찾는 감찰단이 봄 1일(겨울 134일 뒤)에 온다. 먼저 와서 묵는 레오폴트가 보고 들은 것(의심)이 그대로 감찰단의 손에 넘어간다.\n\n성에는 성문·응접실·요람실뿐이다. 식량 30·장작 30으로는 열흘이다. 빈 칸을 눌러 주방과 벌목장부터 짓고(금화 40씩, 2일) 리젤과 브루노를 들인다.\n· 의심 40 미만이면 감찰단은 빈손으로 돌아간다.\n· 의심 70 이상이면 성을 샅샅이 뒤진다.\n\n영지민을 손가락으로 끌어 방에 놓으면 그 방에서 일한다. 몸 색과 방이 맞으면(적성) 25% 더 한다.\n\n· 요람실(아래 오른쪽)이 비면 율리안이 운다.\n· 응접실이 비면 레오폴트가 성을 엿보고, 의심이 쌓인다.\n· 북쪽에서 호르칸이 내려온다. 싸움은 성문에서만 한다. 성문이 비면 호르칸이 성문을 부수고 요람실로 간다.\n· 일하는 사람은 체력이 차지 않는다. 지치면 안뜰이나 숙소에서 쉬게 한다. 쓰러진 채 굶으면 죽는다.\n· 겨울은 추위 2. 장작이 하루 2씩 든다. 눈보라면 4.\n· 빈 칸을 누르면 2일에 걸쳐 방을 짓고, 지은 방을 누르면 3일에 걸쳐 올린다. 대장간에서 무기를 벼려 성문 무기고에 둔다.\n\n율리안을 빼앗기면 끝이다.',
       choices: [{ label: '성으로 들어간다' }] });
     start();
   }
@@ -247,7 +247,8 @@
   const COLD = () => B.coldWinter + (G.day < G.blizzardUntil ? B.blizzardCold : 0);
   const need = L => B.xpBase * Math.pow(L, B.xpExp);
   function levelUp(f) {
-    while (f.level < 5 && f.xp >= need(f.level)) { f.xp -= need(f.level); f.level++; const k = best(f); f[k] = Math.min(10, f[k] + 1); f.hp = Math.min(maxHp(f), f.hp + B.hpPerLv); say(`${f.name}이(가) Lv${f.level}이 되었다. ${STAT[k]} +1`); }
+    while (f.xp >= need(f.level)) { // 레벨 상한 없음. 주능력치는 10에서 멈추고 그 뒤로는 최대 체력만 는다
+      f.xp -= need(f.level); f.level++; const k = best(f); f[k] = Math.min(10, f[k] + 1); f.hp = Math.min(maxHp(f), f.hp + B.hpPerLv); say(`${f.name}이(가) Lv${f.level}이 되었다. ${STAT[k]} +1`); }
   }
   function die(f) {
     G.folk = G.folk.filter(x => x !== f); G.graveyard.push(f);
@@ -300,7 +301,7 @@
     for (const s of Object.keys(G.building)) if (G.building[s] <= G.day) { delete G.building[s]; say(`${R[typeOf(s)].name}을(를) 다 지었다.`); buildCastle(); }
     for (const s of Object.keys(G.upgrading)) if (G.upgrading[s].doneDay <= G.day) { G.levels[s] = G.upgrading[s].to; say(`${R[typeOf(s)].name}이(가) Lv${G.levels[s]}이 되었다.`); delete G.upgrading[s]; }
     if (G.crafting && G.crafting.doneDay <= G.day) { const w = K.weapons.find(x => x.id === G.crafting.weapon); G.armory.push({ id: w.id, dur: B.durability }); say(`대장간에서 ${w.name}을(를) 벼렸다. 성문 무기고에 두었다.`); pop(G.crafting.slot, w.name, 'var(--gold)'); G.crafting = null; }
-    if (K.merchant.days.includes(G.day)) { G.merchant = { until: G.day + 1 }; say('소금 장수가 안뜰에 왔다. 내일 떠난다.'); }
+    if (K.merchant.days.includes(G.day)) { G.merchant = { until: G.day + 1, gold: K.merchant.purse }; say(`소금 장수가 안뜰에 왔다. 지갑에 금화 ${K.merchant.purse}. 내일 떠난다.`); }
     else if (G.merchant && G.day >= G.merchant.until) { G.merchant = null; say('소금 장수가 떠났다.'); }
     const cold = COLD();
     for (const f of [...G.folk]) {
@@ -445,24 +446,17 @@
     G.crafting = { slot, weapon: wid, wid: smith.id, doneDay: G.day + 1 };
     say(`${smith.name}이(가) ${w.name}을(를) 벼리기 시작했다. 내일 완성`); return null;
   }
-  function repair(slot, idx) {
-    const a = G.armory[idx]; if (!a?.broken) return '고칠 것이 없다.';
-    const w = K.weapons.find(x => x.id === a.id), gold = Math.ceil(w.power * B.weaponGoldPerP / 2), wood = Math.ceil(B.weaponWood / 2);
-    if (!working(slot).length) return '대장간에 일꾼이 없다.';
-    if (G.res.gold < gold || G.res.wood < wood) return '금화나 장작이 모자란다.';
-    G.res.gold -= gold; G.res.wood -= wood; a.broken = false; a.dur = B.durability; say(`${w.name}을(를) 고쳤다.`); return null;
-  }
   // 무기고(성문 3자리)에서 들거나 내려놓는다 — 인벤토리 화면 대신 자리 수로 묶는다
   function equip(fid, idx) {
     const f = G.folk.find(x => x.id === fid); if (!f) return;
     if (idx < 0) { if (!f.weapon) return; if (G.armory.length >= ARMORY_CAP) return note('무기고가 찼다.'); G.armory.push(f.weapon); f.weapon = null; return note(`${f.name}이(가) 무기를 내려놓았다.`); }
-    const w = G.armory[idx]; if (!w || w.broken) return;
+    const w = G.armory[idx]; if (!w) return;
     G.armory.splice(idx, 1); if (f.weapon) G.armory.push(f.weapon); f.weapon = w;
     note(`${f.name}이(가) ${wname(w)}을(를) 들었다. 성문 방어 +${K.weapons.find(x => x.id === w.id).power}`);
   }
   // 무기는 습격 한 번에 내구도 1씩 닳는다 — 닳지 않으면 한 번 만든 무기가 영원해서 대장간이 다시 필요 없었다
   function wearWeapons(ids) {
-    for (const id of ids) { const f = G.folk.find(x => x.id === id); if (!f?.weapon) continue; f.weapon.dur--; if (f.weapon.dur <= 0) { const n = wname(f.weapon); G.armory.push({ id: f.weapon.id, dur: 0, broken: true }); f.weapon = null; say(`${f.name}의 ${n}이(가) 부서졌다. 대장간에서 고칠 수 있다.`); } }
+    for (const id of ids) { const f = G.folk.find(x => x.id === id); if (!f?.weapon) continue; f.weapon.dur--; if (f.weapon.dur <= 0) { const n = wname(f.weapon); f.weapon = null; say(`${f.name}의 ${n}이(가) 부서져 못 쓰게 됐다. 대장간에서 새로 벼려야 한다.`); } }
   }
 
   // ═════════ 상인 ═════════
@@ -472,9 +466,10 @@
     const q = K.merchant.qty, nm = { food: '식량', wood: '장작' };
     const rows = ['food', 'wood'].flatMap(res => [
       { label: `${nm[res]} ${q}을 산다 · 금화 ${price(res, q, true)}`, sub: `기준가 ${Math.round(q / B.vGold * (res === 'wood' && COLD() >= 2 ? 2 : 1))} × ${B.mBuy}`, disabled: () => G.res.gold < price(res, q, true), fn: () => { G.res.gold -= price(res, q, true); G.res[res] += q; say(`상인에게서 ${nm[res]} ${q}을 샀다. 금화 −${price(res, q, true)}`); } },
-      { label: `${nm[res]} ${q}을 판다 · 금화 ${price(res, q, false)}`, sub: `기준가 × ${B.mSell}`, disabled: () => G.res[res] < q, fn: () => { G.res.gold += price(res, q, false); G.res[res] -= q; say(`상인에게 ${nm[res]} ${q}을 팔았다. 금화 +${price(res, q, false)}`); } },
+      // 상인의 지갑이 비면 더 못 판다 — 무제한이면 재고를 다 금화로 바꿔 버린다
+      { label: `${nm[res]} ${q}을 판다 · 금화 ${price(res, q, false)}`, sub: `기준가 × ${B.mSell} · 상인 지갑 금화 ${G.merchant.gold}`, disabled: () => G.res[res] < q || G.merchant.gold < price(res, q, false), fn: () => { G.res.gold += price(res, q, false); G.merchant.gold -= price(res, q, false); G.res[res] -= q; say(`상인에게 ${nm[res]} ${q}을 팔았다. 금화 +${price(res, q, false)}`); } },
     ]);
-    event({ eyebrow: '안뜰의 상인', title: '소금 장수', text: `"북부 값은 북부 값이지요." 살 때는 기준가의 ${B.mBuy}배, 팔 때는 ${B.mSell}배다. 겨울에는 장작이 두 배다. 내일 떠난다.\n\n지금 금화 ${Math.floor(G.res.gold)} · 식량 ${Math.floor(G.res.food)} · 장작 ${Math.floor(G.res.wood)}`, choices: [...rows, { label: '보낸다' }] });
+    event({ eyebrow: '안뜰의 상인', title: '소금 장수', text: `"북부 값은 북부 값이지요." 살 때는 기준가의 ${B.mBuy}배, 팔 때는 ${B.mSell}배다. 겨울에는 장작이 두 배다. 지갑에 든 금화 ${G.merchant.gold}까지만 사 간다. 내일 떠난다.\n\n지금 금화 ${Math.floor(G.res.gold)} · 식량 ${Math.floor(G.res.food)} · 장작 ${Math.floor(G.res.wood)}`, choices: [...rows, { label: '보낸다' }] });
   }
 
   // 병영 사람은 습격 때 성문으로 나가 함께 싸운다
@@ -822,11 +817,10 @@
     else choices.push({ label: '최고 레벨이다', disabled: () => true });
     let text = `${r.desc}\n\n업그레이드: ${UP_TEXT[t] || ''}`;
     if (t === 'forge' && !G.building[slot]) {
-      text += `\n\n무기 제작: 금화 = 위력 × ${B.weaponGoldPerP}, 장작 ${B.weaponWood}. 가장 솜씨 좋은 일꾼이 하루를 쓴다. 완성되면 성문 무기고(${ARMORY_CAP}자리)에 둔다. 내구도는 습격 ${B.durability}회.${G.crafting ? `\n지금 ${wname({ id: G.crafting.weapon })} 제작 중 (내일 완성)` : ''}`;
+      text += `\n\n무기 제작: 금화 = 위력 × ${B.weaponGoldPerP}, 장작 ${B.weaponWood}. 가장 솜씨 좋은 일꾼이 하루를 쓴다. 완성되면 성문 무기고(${ARMORY_CAP}자리)에 둔다. 내구도는 습격 ${B.durability}회 — 다 닳으면 부서져 사라진다.${G.crafting ? `\n지금 ${wname({ id: G.crafting.weapon })} 제작 중 (내일 완성)` : ''}`;
       K.weapons.forEach(w => choices.push({ label: `${w.name} 제작 · 성문 방어 +${w.power}`, sub: `금화 ${w.power * B.weaponGoldPerP} · 장작 ${B.weaponWood} · 일꾼 하루${craftErr(slot, w.id) ? ' — ' + craftErr(slot, w.id) : ''}`, disabled: () => !!craftErr(slot, w.id), fn: () => { const e = craft(slot, w.id); if (e) note(e); } }));
-      G.armory.forEach((a, i) => { if (a.broken) { const w = K.weapons.find(x => x.id === a.id); choices.push({ label: `${w.name} 수리`, sub: `금화 ${Math.ceil(w.power * B.weaponGoldPerP / 2)} · 장작 ${Math.ceil(B.weaponWood / 2)}`, fn: () => { const e = repair(slot, i); if (e) note(e); } }); } });
     }
-    if (t === 'gate') text += `\n\n무기고 (${G.armory.length}/${ARMORY_CAP}): ${G.armory.map(a => `${wname(a)}${a.broken ? '(부서짐)' : ` 내구 ${a.dur}/${B.durability}`}`).join(', ') || '비어 있음'}\n들고 있는 사람: ${G.folk.filter(f => f.weapon).map(f => `${f.name} ${wname(f.weapon)}`).join(', ') || '없음'}\n사람을 누른 뒤 아래 패널에서 무기를 들린다.`;
+    if (t === 'gate') text += `\n\n무기고 (${G.armory.length}/${ARMORY_CAP}): ${G.armory.map(a => `${wname(a)} 내구 ${a.dur}/${B.durability}`).join(', ') || '비어 있음'}\n들고 있는 사람: ${G.folk.filter(f => f.weapon).map(f => `${f.name} ${wname(f.weapon)}`).join(', ') || '없음'}\n사람을 누른 뒤 아래 패널에서 무기를 들린다.`;
     choices.push({ label: '닫는다' });
     event({ eyebrow: `${r.name} · Lv${lv}`, title: r.name, text, choices });
   }
@@ -874,6 +868,7 @@
       <div class="meter m-sus ${G.sus >= SUS_SEARCH ? 'warn' : ''}">의심 ${Math.round(G.sus)} <small>${G.sus < SUS_CLEAN ? '감찰 통과' : G.sus < SUS_SEARCH ? '레오폴트가 남음' : `수색 · 숨기기 ${hideScore()}`}</small><div class="t"><i style="width:${G.sus}%"></i><b class="goal" style="left:40%"></b><b class="goal" style="left:70%"></b></div></div>`;
     $('banner').innerHTML = G.raid ? `<div class="banner">${esc(G.raid.name)} 습격 중! 전투력 ${G.raid.F} vs 방어 ${Math.round(defense())}. 힘센 영지민을 성문으로. 성문 버팀 ${Math.ceil(G.raid.gateHp)}/${gateHold()} — 무너질 때 호르칸 체력이 ${HIDE_MAX}을 넘으면 요람실이 털린다</div>`
       : K.totalDays - G.day <= 10 ? `<div class="banner">감찰단 ${K.totalDays - G.day}일 뒤 — 지금 의심 ${Math.round(G.sus)}: ${G.sus < SUS_CLEAN ? '이대로면 빈손으로 돌아간다' : G.sus < SUS_SEARCH ? '돌아가지만 레오폴트가 남는다 (40 미만이면 깨끗하게 끝난다)' : `성을 뒤진다 — 숨기기 ${hideScore()}가 의심보다 커야 한다`}</div>`
+      : !slotOf('kitchen') || !slotOf('lumber') ? `<div class="banner">${!slotOf('kitchen') ? '주방' : '벌목장'}이 없다 — 빈 칸을 눌러 짓는다 (금화 40 · 2일). 식량 ${daysLeft(G.res.food, daily().food) < Infinity ? daysLeft(G.res.food, daily().food) + '일' : '충분'} · 장작 ${daysLeft(G.res.wood, daily().wood) < Infinity ? daysLeft(G.res.wood, daily().wood) + '일' : '충분'} 뒤 바닥</div>`
       : G.res.food <= 0 ? `<div class="banner">식량이 바닥났다. 영지민이 굶주려 쓰러진다 — 주방에 솜씨 좋은 사람을.</div>`
       : nextRaid && nextRaid.day - G.day <= 3 ? `<div class="banner">경보: ${esc(nextRaid.name)} ${nextRaid.day - G.day}일 뒤. 성문(왼쪽 위)에 힘센 영지민을.</div>`
       : G.day < G.blizzardUntil ? `<div class="banner cold">눈보라 — 추위 ${COLD()}, 장작 하루 ${woodUse()} (${G.blizzardUntil - G.day}일)</div>`
@@ -888,7 +883,7 @@
     $('panel').innerHTML = selF
       ? `<div class="who"><b>${esc(selF.name)} <span style="font-weight:400;color:var(--muted);font-size:12px">${esc(selF.role)} · Lv${selF.level}</span></b><button class="btn" id="toYard">안뜰로</button></div>
          <div class="stats3"><span>힘 <b>${Math.round(selF.str)}</b></span><span>솜씨 <b>${Math.round(selF.dex)}</b></span><span>마음 <b>${Math.round(selF.heart)}</b></span><span>체력 <b>${Math.round(selF.hp)}/${maxHp(selF)}</b></span><span>XP <b>${Math.floor(selF.xp)}/${selF.level < 5 ? need(selF.level) : '—'}</b></span>${selF.hero ? `<span>통솔 <b>${selF.lead}</b></span><span>지략 <b>${selF.wit}</b></span>` : ''}</div>
-         <div class="who"><span class="hint">무기: ${selF.weapon ? `${wname(selF.weapon)} (내구 ${selF.weapon.dur}/${B.durability})` : '없음'}</span><span>${G.armory.map((a, i) => a.broken ? '' : `<button class="btn" data-eq="${i}">${wname(a)} 들기</button>`).join('')}${selF.weapon ? '<button class="btn" data-eq="-1">내려놓기</button>' : ''}</span></div>
+         <div class="who"><span class="hint">무기: ${selF.weapon ? `${wname(selF.weapon)} (내구 ${selF.weapon.dur}/${B.durability})` : '없음'}</span><span>${G.armory.map((a, i) => `<button class="btn" data-eq="${i}">${wname(a)} 들기</button>`).join('')}${selF.weapon ? '<button class="btn" data-eq="-1">내려놓기</button>' : ''}</span></div>
          <p class="hint">${selF.hurt ? `부상 — ${selF.hurt}일 뒤 회복` : '빛나는 방을 누르면 그 방에서 일한다. 끌어다 놓아도 된다.'}</p>`
       : `<p class="hint">${fresh ? esc(fresh) : '영지민을 끌어다 방에 놓는다. 몸 색 = 잘하는 일 — <span style="color:#E0913E">주황 힘</span> · <span style="color:#DDB95E">노랑 솜씨</span> · <span style="color:#63B585">초록 마음</span>'}</p>`;
     if (!selF) $('panel').insertAdjacentHTML('afterbegin', `<div class="who"><span class="hint">${G.expeditions.length ? `정찰 중 ${G.expeditions.map(e => `${K.scouts.find(d => d.id === e.dest).name} ${e.back - G.day}일`).join(' · ')}` : '금화가 모자라면 정찰을 보낸다.'}</span><button class="btn" id="scoutBtn">정찰 보내기</button></div>`);
@@ -916,7 +911,7 @@
   }
   addEventListener('resize', () => { if (G) buildCastle(); });
   // 브라우저 검수용 손잡이
-  window.__keep09 = { get G() { return G; }, upCost, lvOf, startRaid, raidTick, assign, buildCastle, dayTick, sendScouts, scoutQuote, daily, popCap, newGame, craft, equip, repair, merchantSheet, defense, need, COLD, maxHp, get showing() { return showing; } };
+  window.__keep09 = { get G() { return G; }, upCost, lvOf, startRaid, raidTick, assign, buildCastle, dayTick, sendScouts, scoutQuote, daily, popCap, newGame, craft, equip, merchantSheet, defense, need, COLD, maxHp, get showing() { return showing; } };
   newGame(); renderHud(); requestAnimationFrame(frame);
 })();
 </script>
