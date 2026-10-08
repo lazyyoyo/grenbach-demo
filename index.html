@@ -1,7 +1,7 @@
 <!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>그렌바흐 대공령 v0.9.7</title>
+<title>그렌바흐 대공령 v0.9.8</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
@@ -24,6 +24,14 @@
   .top { min-width: 0; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   .top h1 { font-family: var(--serif); font-size: 17px; margin: 0; }
   /* 속도 버튼 옆에 두면 390px에서 두 줄로 접혀 제목 아래 한 줄로 뺐다 */
+  /* 계절 띠: 한 해(120일)를 네 칸으로 보여 "감찰단까지 n일"이 얼마나 긴지 감을 준다 */
+  .strip { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: center; background: none; border: 0; padding: 0; margin-top: -4px; text-align: left; }
+  .strip .bar { position: relative; height: 10px; display: grid; grid-template-columns: repeat(4, 1fr); border-radius: 3px; overflow: hidden; }
+  .strip .bar span { font-size: 9px; line-height: 10px; padding-left: 4px; color: rgba(236,230,218,.75); white-space: nowrap; overflow: hidden; }
+  .strip .s0 { background: rgba(126,154,106,.35); } .strip .s1 { background: rgba(184,166,90,.35); } .strip .s2 { background: rgba(176,122,74,.35); } .strip .s3 { background: rgba(127,160,184,.35); }
+  .strip .past { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(255,255,255,.16); pointer-events: none; }
+  .strip .now { position: absolute; top: -1px; bottom: -1px; width: 2px; margin-left: -1px; background: #fff; pointer-events: none; }
+  .strip .flag { font-size: 9.5px; color: var(--seal); white-space: nowrap; }
   .date { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: -6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .speed { display: flex; gap: 4px; }
   .speed button { background: var(--stone); border: 1px solid var(--line); border-radius: 6px; padding: 4px 9px; font-size: 12px; color: var(--muted); }
@@ -191,8 +199,9 @@
 </style>
 
 <div class="app">
-  <div class="top"><div><h1>그렌바흐 대공령 <small class="ver">v0.9.7</small></h1></div><div class="speed" id="speed"></div></div>
+  <div class="top"><div><h1>그렌바흐 대공령 <small class="ver">v0.9.8</small></h1></div><div class="speed" id="speed"></div></div>
   <div class="date" id="date"></div>
+  <button class="strip" id="strip" aria-label="한 해 달력"></button>
   <div class="res" id="res"></div>
   <div class="crib" id="crib"></div>
   <div id="banner"></div>
@@ -232,13 +241,17 @@
     figs.forEach(f => f.el.remove()); figs.clear();
     buildCastle(); renderTut();
     scene([
-      { img: 'media/ottilie.webp', who: '겨울 30일 · 성문', text: '눈보라 속에서 늙은 유모 오틸리에가 성문을 두드렸다. 품에는 생후 서른 날 된 아기가 있었다.' },
-      { img: 'media/julian.webp', who: '오틸리에', text: '"리셀라 님이 가시며 맡기셨습니다, 마님. 이름은 율리안, 겨울 첫날에 났습니다."' },
-      { img: 'media/eleanor.webp', who: '엘레노어', text: '"수도는 황자가 죽었다고 하겠지. 황후궁이 믿지 않으면 사람을 보낼 거고." 오틸리에는 그날 밤 추위를 이기지 못했다.' },
-      { who: '봄 1일 · 베른하르트', text: '"각하, 아이는 요한나가 젖을 물렸습니다. 성은… 보시는 대로입니다."' },
+      { img: SCN('opening-1'), who: '지난가을 · 수도', text: '아버지는 황후 리셀라의 호위로 기사단을 이끌고 수도에 갔다. 돌아온 것은 검은 봉인의 서신 한 장뿐이었다.' },
+      { img: SCN('opening-2'), who: '그 겨울 · 그렌바흐', text: '영주와 기사들이 비운 성을 호르칸이 덮쳤다. 바깥채는 타고, 남은 것은 성문과 응접실, 요람실뿐이었다.' },
+      { img: SCN('opening-3'), fallback: 'media/ottilie.webp', who: '겨울 30일 · 성문', text: '눈보라 속에서 늙은 유모 오틸리에가 성문을 두드렸다. 품에는 생후 서른 날 된 아기가 있었다.' },
+      { img: SCN('opening-4'), fallback: 'media/julian.webp', who: '오틸리에', text: '"리셀라 님이 가시며 맡기셨습니다, 아가씨. 이름은 율리안, 겨울 첫날에 났습니다."' },
+      { img: SCN('opening-5'), fallback: 'media/eleanor.webp', who: '엘레노어', text: '"수도는 황자가 죽었다고 하겠지. 황후궁이 믿지 않으면 사람을 보낼 거고." 오틸리에는 그날 밤 추위를 이기지 못했다.' },
+      { img: SCN('opening-6'), who: '봄 1일 · 베른하르트', text: '"아가씨… 아니, 각하. 아이는 요한나가 젖을 물렸습니다. 성은 보시는 대로입니다."' },
     ], [{ label: '성을 둘러본다', fn: startTut }]);
     start();
   }
+  // 장면 그림은 media/scenes/<이름>.webp — 파일이 없으면 fallback 그림으로 한 번 바꾸고, 그것도 없거나 실패하면 그림만 지운다
+  const SCN = n => `media/scenes/${n}.webp`;
   const slots = () => Object.keys(G.rooms);
   const at = slot => G.folk.filter(f => f.room === slot);
   const working = slot => at(slot).filter(f => !f.hurt);
@@ -353,7 +366,7 @@
     if (j.health <= 0) return endGame('sick');
     if (G.sus >= 100) return endGame('taken');
     if (!G.folk.some(f => !f.hero)) return endGame('empty');
-    const m = K.milestones[G.ms]; if (m && j.bond >= m[0]) { G.ms++; scene([{ img: 'media/julian.webp', who: `성장 기록 · ${m[1]}`, text: m[2] }]); }
+    const m = K.milestones[G.ms]; if (m && j.bond >= m[0]) { G.ms++; scene([{ img: SCN(`milestone-${G.ms}`), fallback: 'media/julian.webp', who: `성장 기록 · ${m[1]}`, text: m[2] }]); }
     for (const r of K.raids) { if (doy() === r.day - 3) say(`경보: ${r.name} · 전투력 ${raidF(r)} · 사흘 뒤 도착`); if (doy() === r.day) startRaid(r); }
     if (K.refugeeDays.includes(doy())) refugee();
     returnScouts();
@@ -366,20 +379,20 @@
     const d = doy();
     // 레오폴트가 오기 전에는 의심이 움직이지 않는다 — 컷씬 버튼이 아니라 이 날 자체로 켠다(봇·검사가 dayTick만 불러도 같게)
     if (G.day === 7) { G.leoHere = true; say('레오폴트 비젠이 성에 묵기 시작했다.'); scene([
-      { who: '베른하르트', text: '"각하, 황후궁에서 손님입니다. 레오폴트 비젠 경 — 이듬해 봄 감찰단이 올 때까지 묵겠답니다."' },
-      { who: '레오폴트', text: '"이 성은 아이 울음이 들리는군요, 각하." 그는 응접실 의자에 앉아 성 안을 둘러보았다.' },
+      { img: SCN('leopold-1'), who: '베른하르트', text: '"각하, 황후궁에서 손님입니다. 레오폴트 비젠 경 — 이듬해 봄 감찰단이 올 때까지 묵겠답니다."' },
+      { img: SCN('leopold-2'), who: '레오폴트', text: '"이 성은 아이 울음이 들리는군요, 각하." 그는 응접실 의자에 앉아 성 안을 둘러보았다.' },
     ], [{ label: '맞이한다', sub: '지금부터 의심이 쌓인다 · 응접실 사람의 마음이 막는다' }]); }
     if (G.day === G.leoReturnDay) { G.leoHere = true; say('레오폴트가 돌아왔다.'); }
     if (d === 67) scene([
-      { who: '베른하르트', text: '"베르크 기사령에서 전갈입니다. 국경 성의 겨울 채비를 각하와 함께 보고 싶답니다."' },
-      { who: '엘레노어', text: '열이틀 길이었다. 레오폴트는 성에 남는다.' },
+      { img: SCN('border-1'), who: '베른하르트', text: '"베르크 기사령에서 전갈입니다. 국경 성의 겨울 채비를 각하와 함께 보고 싶답니다."' },
+      { img: SCN('border-2'), who: '엘레노어', text: '열이틀 길이었다. 레오폴트는 성에 남는다.' },
     ], [
       { label: '간다', sub: G.berkDone ? '엘레노어 12일 부재 · 돌아오면 통솔 +1 · 지략 +0.5' : '엘레노어 12일 부재 · 돌아오면 통솔 +1 · 겨울 1일에 베르크 기사 2명 합류', fn: () => { const e = eleanor(); G.absentUntil = G.day + 12; e.room = null; e.wit = Math.min(10, e.wit + 0.5); G.berk = true; say('엘레노어가 국경 성으로 떠났다. 12일 부재'); } },
       { label: '가지 않는다', sub: '지략 +0.5 · 베르크와 소원해진다', fn: () => { const e = eleanor(); e.wit = Math.min(10, e.wit + 0.5); say('베르크 기사령에 거절 서신을 보냈다.'); } },
     ]);
     // 기사는 처음 간 해에 한 번만 온다
-    if (d === 90 && G.berk && !G.berkDone) { G.berkDone = true; K.knights.forEach((k, i) => G.folk.push(mkFolk(k, { id: 'k' + i }))); say('베르크 기사령에서 기사 둘이 왔다.'); }
-    if (d === K.blizzard.day) { G.blizzardUntil = G.day + K.blizzard.days; scene([{ who: '겨울 8일', text: '열이틀의 눈보라가 산맥을 넘어왔다.' }],
+    if (d === 90 && G.berk && !G.berkDone) { G.berkDone = true; K.knights.forEach((k, i) => G.folk.push(mkFolk(k, { id: 'k' + i }))); say('베르크 기사령에서 기사 둘이 왔다.'); scene([{ img: SCN('knights'), who: '겨울 1일 · 성문', text: '푸른 망토의 베르크 기사 둘이 성문으로 들어왔다. 아른트와 테오였다.' }]); }
+    if (d === K.blizzard.day) { G.blizzardUntil = G.day + K.blizzard.days; scene([{ img: SCN('blizzard'), who: '겨울 8일', text: '열이틀의 눈보라가 산맥을 넘어왔다.' }],
       [{ label: '벌목장을 챙긴다', sub: `추위 ${COLD() - B.blizzardCold} → ${COLD()} · 장작 하루 ${woodUse()} · 정찰 부상 +${B.blizzardCold * 3}%p` }]); }
   }
   // 받으면 하루 식량 수지가 어떻게 바뀌는지 — "식량 0.5 추가"만으로는 늘어나는 게 소비인지 보상인지 알 수 없었다
@@ -583,13 +596,13 @@
     const sus = Math.round(G.sus), who = `${dateOf(G.day)} · 감찰단`;
     if (sus < SUS_CLEAN) {
       G.sus = 10; G.leoHere = false; G.leoReturnDay = G.day + 90; say('감찰단이 빈손으로 돌아갔다. 레오폴트도 떠났다.');
-      return scene([{ who, text: '감찰단장은 장부 몇 장을 넘기고는 하품을 했다. 레오폴트도 그들과 함께 남쪽으로 떠났다.' }], [{ label: '…', sub: '의심 → 10 · 레오폴트 떠남 (겨울 1일 귀환)' }]);
+      return scene([{ img: SCN('inspect-clean'), who, text: '감찰단장은 장부 몇 장을 넘기고는 하품을 했다. 레오폴트도 그들과 함께 남쪽으로 떠났다.' }], [{ label: '…', sub: '의심 → 10 · 레오폴트 떠남 (겨울 1일 귀환)' }]);
     }
     if (sus < SUS_SEARCH) {
       G.sus = clamp(G.sus - 15); say('감찰단이 돌아갔다. 레오폴트는 남았다.');
-      return scene([{ who, text: '감찰단은 아무것도 찾지 못하고 돌아갔다. 레오폴트는 떠나지 않았다.' }], [{ label: '…', sub: '의심 −15 · 레오폴트는 남는다' }]);
+      return scene([{ img: SCN('inspect-watched'), who, text: '감찰단은 아무것도 찾지 못하고 돌아갔다. 레오폴트는 떠나지 않았다.' }], [{ label: '…', sub: '의심 −15 · 레오폴트는 남는다' }]);
     }
-    const h = hideScore(), open = { who, text: '레오폴트의 보고를 받은 감찰단이 방마다 문을 열었다.' };
+    const h = hideScore(), open = { img: SCN('inspect-search'), who, text: '레오폴트의 보고를 받은 감찰단이 방마다 문을 열었다.' };
     if (h <= sus) { scene([open]); return endGame('taken'); }
     G.sus = clamp(G.sus - 25); G.julian.health = clamp(G.julian.health - 10); say(`수색을 버텼다. 숨기기 ${h} > 의심 ${sus}`);
     scene([open, { who: '요람실', text: '요람은 비어 있었다. 굴뚝 뒤 좁은 틈에서 율리안은 끝까지 울지 않았다.' }], [{ label: '…', sub: '의심 −25 · 율리안 건강 −10' }]);
@@ -605,7 +618,7 @@
     const [title, text] = ENDS[kind], sus = Math.round(G.sus);
     const why = {
       taken: sus >= 100 ? '의심이 100이 되었다.' : `수색 때 숨기기 점수(${hideScore()})가 의심(${sus})을 넘지 못했다.`, raided: '성문이 무너졌을 때 요람실이 비어 있었거나, 호르칸이 아직 강했다(체력 30 초과).', sick: '율리안의 건강이 0이 되었다.', empty: '엘레노어 외 영지민이 모두 죽었다.' }[kind];
-    event({ eyebrow: `게임 오버 · ${dateOf(G.day)}`, title, text: text + `\n\n이유: ${why}\n버틴 날 ${G.day}일 · 습격 ${G.raidsWon}승 · 영지민 ${G.folk.length}명 · 애착 ${Math.round(G.julian.bond)}`,
+    event({ img: SCN(`over-${kind}`), eyebrow: `게임 오버 · ${dateOf(G.day)}`, title, text: text + `\n\n이유: ${why}\n버틴 날 ${G.day}일 · 습격 ${G.raidsWon}승 · 영지민 ${G.folk.length}명 · 애착 ${Math.round(G.julian.bond)}`,
       choices: [{ label: '처음부터 다시', fn: () => setTimeout(newGame, 0) }] });
     renderHud(); syncRooms();
   }
@@ -614,7 +627,7 @@
   function event(e) { queue.push(e); pump(); }
   // 컷씬: 한 장씩 큐에 넣는다. 마지막 장만 선택지를 가진다
   function scene(pages, finalChoices) {
-    pages.forEach((pg, i) => event({ img: pg.img, eyebrow: pg.who, text: pg.text, dots: [i, pages.length],
+    pages.forEach((pg, i) => event({ img: pg.img, fallback: pg.fallback, eyebrow: pg.who, text: pg.text, dots: [i, pages.length],
       choices: i < pages.length - 1 ? [{ label: '다음' }] : finalChoices || [{ label: '…' }] }));
   }
 
@@ -625,8 +638,9 @@
   const inRoom = (id, t) => { const f = G.folk.find(x => x.id === id); return !f || typeOf(f.room) === t; };
   const built = t => slots().some(s => typeOf(s) === t && !G.building[s]);
   const TUT = [
-    { say: '"각하, 성에는 성문과 요람실, 응접실뿐입니다. 식량은 열흘치입니다."', sys: '빈 칸 → 주방 · 금화 40 · 2일', done: () => !!slotOf('kitchen'), hl: () => [...world.querySelectorAll('.room.empty')] },
+    { say: '"각하, 불탄 자리가 아홉입니다. 식량은 열흘치입니다."', sys: '빈 칸 → 주방 · 금화 40 · 2일', done: () => !!slotOf('kitchen'), hl: () => [...world.querySelectorAll('.room.empty')] },
     { say: '"장작도 곧 바닥납니다. 벌목장을 지으십시오."', sys: '빈 칸 → 벌목장 · 금화 40 · 2일', done: () => !!slotOf('lumber'), hl: () => [...world.querySelectorAll('.room.empty')] },
+    { say: '"한 해는 봄·여름·가을·겨울, 각 서른 날입니다. 겨울이 끝나면 황후궁 감찰단이 옵니다."', sys: '위 띠 = 한 해 · 1계절 30일 · 하루 2.6초', next: true, hl: () => [$('strip')] },
     { say: '"짓는 동안 성을 보시지요. 성문은 하인츠와 각하가 지키십니다. 호르칸은 성문에서만 막습니다."', sys: '방어 = 성문 사람의 힘 합 + 6 + 통솔', next: true, hl: () => [roomEl('gate')] },
     { say: '"요람실의 요한나가 율리안에게 젖을 물립니다. 비면 아이가 웁니다."', sys: '요람실이 비면 율리안 건강 −8/일', next: true, hl: () => [roomEl('nursery')] },
     { say: '"응접실은 제가 맡겠습니다. 손님이 오면 말씀드리지요."', sys: '응접실: 손님의 의심을 붙잡아 둔다', next: true },
@@ -670,7 +684,7 @@
   function pump() {
     if (showing || !queue.length) return;
     const e = queue.shift(); showing = true;
-    $('modal').innerHTML = `<div class="modal"><div class="sheet${e.dots ? ' scene' : ''}">${e.img ? `<img class="pic" src="${e.img}" alt="" onerror="this.remove()">` : ''}<div class="body">
+    $('modal').innerHTML = `<div class="modal"><div class="sheet${e.dots ? ' scene' : ''}">${e.img ? `<img class="pic" src="${e.img}" alt=""${e.fallback ? ` data-fb="${e.fallback}"` : ''} onerror="if(this.dataset.fb){this.src=this.dataset.fb;delete this.dataset.fb}else this.remove()">` : ''}<div class="body">
       ${e.eyebrow ? `<div class="eyebrow">${esc(e.eyebrow)}</div>` : ''}${e.title ? `<h2>${esc(e.title)}</h2>` : ''}${e.text ? `<p>${esc(e.text)}</p>` : ''}
       ${e.dots ? `<div class="dots" aria-label="${e.dots[0] + 1}/${e.dots[1]}">${Array.from({ length: e.dots[1] }, (_, k) => k === e.dots[0] ? '●' : '○').join(' ')}</div>` : ''}
       <div class="${e.grid ? 'buildgrid' : 'opts'}">${e.choices.map((c, i) => `<button class="opt" data-i="${i}" ${c.disabled && c.disabled() ? 'disabled' : ''}>${c.mini || ''}<b>${esc(c.label)}</b>${c.sub ? `<span>${esc(c.sub)}</span>` : ''}</button>`).join('')}</div></div></div></div>`;
@@ -950,6 +964,9 @@
     const d = daily(), j = G.julian, nextRaid = K.raids.find(r => r.day > doy()), toInsp = K.totalDays - doy(), yr = yearOf(G.day);
     // 1년 = 120일이지만 나이는 겨울을 날 때마다(봄 1일) 한 살씩 센다
     $('date').textContent = `${dateOf(G.day)} · ${yr === 1 ? `생후 ${30 + G.day}일` : `${yr - 1}세`} · 감찰단 ${toInsp}일 뒤`;
+    const pct = (doy() + 0.5) / K.totalDays * 100;
+    $('strip').innerHTML = `<div class="bar">${K.seasons.map((n, i) => `<span class="s${i}">${n}</span>`).join('')}<i class="past" style="width:${pct}%"></i><i class="now" style="left:${pct}%"></i></div><span class="flag">⚑ 감찰단</span>`;
+    $('strip').onclick = () => note(`1계절 ${K.seasonDays}일 · 1년 ${K.totalDays}일 · 하루 ${DAY_MS / 1000}초(×1) · 감찰단은 겨울이 끝나면 온다`);
     $('speed').innerHTML = [[0, '❚❚'], [1, '1×'], [2, '2×'], [4, '4×']].map(([v, l]) => `<button data-sp="${v}" class="${G.speed === v ? 'on' : ''}" aria-label="속도 ${l}">${l}</button>`).join('');
     $('speed').querySelectorAll('button').forEach(b => b.onclick = () => { G.speed = +b.dataset.sp; renderHud(); });
     const fl = daysLeft(G.res.food, d.food), wl = daysLeft(G.res.wood, d.wood);
