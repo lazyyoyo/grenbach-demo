@@ -1,8 +1,11 @@
 // 「그렌바흐 대공령」 데이터 — 엔진(index.html)과 분리.
 // 능력치: str(힘) · dex(솜씨) · heart(마음), 1~10. 하루 = 엔진의 DAY_MS.
 window.KEEP = {
-  totalDays: 134, // 겨울 1일 → 봄 1일(황후궁 감찰단 도착)
-  // 성에는 성문·응접실·요람실만 있다. 주방·벌목장은 플레이어가 짓는다 — 아무것도 안 하면 식량 10일·장작 15일 뒤 바닥
+  // 1년 = 봄·여름·가을·겨울 30일씩 120일. 해는 이어지고, 해마다 봄 1일에 황후궁 감찰단이 온다(첫 감찰은 G.day 120). 일정의 day는 해 안의 날
+  totalDays: 120, seasons: ['봄', '여름', '가을', '겨울'], seasonDays: 30,
+  coldBySeason: [1, 0, 1, 2], // 계절별 추위 = 하루 장작 소비. 눈보라면 balance.blizzardCold를 더한다
+  blizzard: { day: 97, days: 12 }, // 겨울 8일부터 열이틀
+  // 성에는 성문·응접실·요람실만 있다. 주방·벌목장은 플레이어가 짓는다 — 아무것도 안 하면 식량 10일·장작 30일(봄 추위 1) 뒤 바닥
   start: { food: 30, wood: 30, gold: 120 },
   popBase: 6,
   // 밸런스 변수 — 시스템 설계서의 기준 변수와 같은 이름. 값만 바꿔 조정한다
@@ -18,7 +21,8 @@ window.KEEP = {
     xpBase: 20, xpExp: 2, hpBase: 90, hpPerLv: 10,
     weaponGoldPerP: 6, weaponWood: 5, durability: 3, armoryCap: 3, // 내구도 0이면 부서져 사라진다 (수리 없음)
     mBuy: 1.5, mSell: 0.5, // 상인이 한 번에 사 가는 양은 지갑(merchant.purse)으로 묶는다
-    coldWinter: 2, blizzardCold: 2,
+    blizzardCold: 2,
+    raidYearMult: 0.5,   // 습격 전투력 = n × h × (1 + 이 값 × (해 − 1)) — 2년째 1.5배
     deathDmg: 30,        // 쓰러진 채 이만큼 더 깎이면 죽는다
     // 의심: 하루 susBase 오르고 응접실 사람의 마음(적성 포함) × susParlor × 방 배수만큼 덜 오른다.
     // 0.6이면 요한나(마음 6 × 적성 1.25) 한 명으로 완전히 상쇄되어 감찰이 긴장이 없었다
@@ -26,7 +30,7 @@ window.KEEP = {
   },
   rooms: {
     gate:     { name: '성문', stat: 'str', cap: 3, fixed: true, desc: '습격을 막는다. 방어 = 성문·병영 사람의 힘(+무기 위력) + 성벽 보너스 6 + 엘레노어 통솔. 무기고 3자리' },
-    lumber:   { name: '벌목장', stat: 'str', cap: 2, res: 'wood', rate: 0.5, cost: 40, desc: '장작 = 힘 × 0.5/일. 추위만큼 하루에 든다 (겨울 2, 눈보라 4)' },
+    lumber:   { name: '벌목장', stat: 'str', cap: 2, res: 'wood', rate: 0.5, cost: 40, desc: '장작 = 힘 × 0.5/일. 추위만큼 하루에 든다 (봄 1 · 여름 0 · 가을 1 · 겨울 2 · 눈보라 +2)' },
     kitchen:  { name: '주방', stat: 'dex', cap: 2, res: 'food', rate: 0.5, cost: 40, desc: '식량 = 솜씨 × 0.5/일. 영지민 1명이 하루 0.5씩 먹는다' },
     forge:    { name: '대장간', stat: 'dex', cap: 2, res: 'gold', rate: 0.35, cost: 60, desc: '금화 = 솜씨 × 0.35/일. 금화·장작·하루 노동으로 무기를 벼린다' },
     barracks: { name: '병영', stat: 'str', cap: 3, train: true, cost: 70, desc: '머무는 동안 경험치 +3/일 (일하는 방은 +1). 습격 때 성문에서 함께 싸운다' },
@@ -43,23 +47,24 @@ window.KEEP = {
   ],
   folk: [
     { id: 'eleanor', name: '엘레노어', role: '대공', str: 8, dex: 3, heart: 2, lead: 4, wit: 3, room: 'r0c0', hero: true, img: 'media/eleanor.webp' },
-    { id: 'ottilie', name: '오틸리에', role: '옛 유모', str: 1, dex: 4, heart: 7, room: 'r3c2', img: 'media/ottilie.webp' },
-    { id: 'johanna', name: '요한나', role: '젖어미', str: 2, dex: 3, heart: 6, room: 'r1c0' },
+    { id: 'johanna', name: '요한나', role: '유모', str: 2, dex: 3, heart: 6, room: 'r3c2' },
+    { id: 'bernhard', name: '베른하르트', role: '시종장', str: 2, dex: 4, heart: 6, room: 'r1c0' }, // 응접실 담당 · 튜토리얼 안내
     { id: 'heinz',   name: '하인츠', role: '경비대장', str: 6, dex: 2, heart: 1, room: 'r0c0' },
     { id: 'bruno',   name: '브루노', role: '나무꾼', str: 5, dex: 2, heart: 2, room: null },
     { id: 'liesel',  name: '리젤', role: '요리사', str: 1, dex: 6, heart: 3, room: null },
   ],
   // 습격대 = 병력 n × 개체 힘 h. 전투력 F = n × h, 체력 = F × raidHpK, 공격/틱 = F × raidAtk
-  // 시작 배치 그대로(방어 27.5)면 2차는 버티고 3차(55일)에 진다. 한 파도마다 방어 +10쯤 키워야 따라간다
+  // 시작 배치 그대로(방어 27.5)면 2차는 버티고 3차(여름 26일, G.day 55 · 전투력 64)에 진다 — 주방·벌목장만 짓고 방치해도 첫 여름을 못 넘긴다.
+  // 한 파도마다 방어 +10쯤 키워야 따라간다
   raids: [
-    { day: 14, n: 2, h: 6, name: '호르칸 척후대' },
+    { day: 20, n: 2, h: 6, name: '호르칸 척후대' },
     { day: 34, n: 4, h: 7, name: '호르칸 약탈대' },
-    { day: 55, n: 7, h: 8, name: '호르칸 기마대' },
+    { day: 55, n: 8, h: 8, name: '호르칸 기마대' },
     { day: 78, n: 7, h: 10, name: '얼음강을 건넌 기마대' },
     { day: 100, n: 9, h: 10, name: '눈보라 속의 대족장' },
-    { day: 122, n: 11, h: 10, name: '호르칸 연합군' },
+    { day: 115, n: 11, h: 10, name: '호르칸 연합군' },
   ],
-  refugeeDays: [20, 47, 66, 88, 110],
+  refugeeDays: [24, 44, 64, 84, 104],
   refugees: [
     { name: '마르타', role: '피난민 과부', str: 2, dex: 5, heart: 5 },
     { name: '클라우스', role: '탈영병', str: 6, dex: 3, heart: 1 },
@@ -73,7 +78,7 @@ window.KEEP = {
     { name: '케넥', role: '호르칸 소년병', str: 4, dex: 3, heart: 4 },
     { name: '바르가', role: '호르칸 여전사', str: 8, dex: 2, heart: 2 },
   ],
-  // 정찰지: days 걸리는 날, risk 추위 0일 때 한 사람당 다칠 확률(겨울 추위 2에서 +6%p), find 사람을 데려올 확률.
+  // 정찰지: days 걸리는 날, risk 추위 0일 때 한 사람당 다칠 확률(추위 1마다 +3%p), find 사람을 데려올 확률.
   // 보상 금화 = 인원 × 평균 힘 × 일수 × 대장간 금화율 × (1 + scoutBonus × 일수)
   scouts: [
     { id: 'forest', name: '숲 가장자리', days: 2, risk: 0.06, find: 0.2 },
@@ -85,7 +90,12 @@ window.KEEP = {
     { id: 'spear', name: '창', power: 6 },
     { id: 'sword', name: '장검', power: 10 },
   ],
-  merchant: { days: [10, 30, 50, 70, 90, 110, 130], qty: 20, purse: 20 }, // purse = 상인이 한 번 방문에 쓰는 금화
+  merchant: { days: [9, 29, 49, 69, 89, 109], stay: 3, qty: 20, purse: 20 }, // 10·30일에 와서 3일 머문다. purse = 한 번 방문에 쓰는 금화
+  // 국경 성 방문(가을 8일)에 가면 겨울 1일(G.day 90)에 합류한다 — 정원을 넘겨도 온다
+  knights: [
+    { name: '아른트', role: '베르크 기사', str: 8, dex: 3, heart: 2 },
+    { name: '테오', role: '베르크 기사', str: 7, dex: 4, heart: 3 },
+  ],
   wanderers: [
     { name: '그레타', role: '빵 굽는 이', str: 2, dex: 7, heart: 3, line: '눈 덮인 방앗간에서 혼자 버티고 있었다. "밀가루만 있으면 뭐든 굽죠."' },
     { name: '에밀', role: '사냥꾼', str: 5, dex: 4, heart: 2, line: '덫을 보러 나왔다가 정찰대와 마주쳤다. 활은 낡았지만 손은 빠르다.' },
@@ -99,7 +109,7 @@ window.KEEP = {
   milestones: [
     [25, '첫 뒤집기', '율리안이 혼자 몸을 뒤집었다. 목소리만 듣고도 고개부터 돌린다.'],
     [45, '첫 이', '율리안이 손가락을 깨물었다. 잇몸 사이로 하얀 것이 만져진다. "…늑대 새끼 맞네."'],
-    [65, '첫걸음', '오틸리에의 손을 놓은 율리안이 세 걸음을 걸어 당신의 무릎에 부딪혔다.'],
+    [65, '첫걸음', '요한나의 손을 놓은 율리안이 세 걸음을 걸어 당신의 무릎에 부딪혔다.'],
     [85, '첫말', '"…바바. 엄, 마." — "…이러면 반칙이지."'],
   ],
 };

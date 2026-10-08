@@ -1,7 +1,7 @@
 <!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>그렌바흐 대공령 v0.9.6</title>
+<title>그렌바흐 대공령 v0.9.7</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
@@ -23,7 +23,8 @@
 
   .top { min-width: 0; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   .top h1 { font-family: var(--serif); font-size: 17px; margin: 0; }
-  .date { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  /* 속도 버튼 옆에 두면 390px에서 두 줄로 접혀 제목 아래 한 줄로 뺐다 */
+  .date { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: -6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .speed { display: flex; gap: 4px; }
   .speed button { background: var(--stone); border: 1px solid var(--line); border-radius: 6px; padding: 4px 9px; font-size: 12px; color: var(--muted); }
   .speed button.on { color: var(--text); border-color: var(--ember); }
@@ -127,6 +128,7 @@
   .pick { display: flex; gap: 8px; align-items: center; font-size: 13px; padding: 6px 8px; background: var(--stone-2); border-radius: 8px; }
   .fig .eye.cand { background: var(--ember); color: #1A1410; }
   .fig.cand, .fig.merch { cursor: pointer; }
+  .fig .eye.calm { background: #4A5568; }
   .fig .eye.merch { background: #6B5A8E; color: #fff; }
   .room.constructing .light, .room.constructing .dec, .room.constructing .anvil, .room.constructing .dummy { opacity: .35; }
   .opt .q { white-space: pre-line; }
@@ -168,16 +170,36 @@
   .buildgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .buildgrid .opt { grid-template-rows: 46px auto auto; padding: 8px; }
   .buildgrid .mini { position: relative; border-radius: 4px; overflow: hidden; }
+  /* 컷씬: 이야기 목소리만 — 화자 · 본문 · 쪽 점 · 버튼 하나 */
+  .sheet.scene p { font-size: 16px; }
+  /* 캐릭터 시트(3분할)는 오른쪽 끝이 초상이라 4:3으로 오른쪽을 잘라 보인다 */
+  .sheet.scene .pic { aspect-ratio: 4 / 3; object-fit: cover; object-position: 100% 30%; }
+  .sheet .dots { font-size: 9px; letter-spacing: .3em; color: var(--muted); }
+  /* 튜토리얼: 모달이 아니라 화면 아래에 붙는 안내 줄. 성을 보면서 따라 하게 한다 */
+  #tut { position: fixed; left: 0; right: 0; bottom: 0; z-index: 15; padding: 10px 12px calc(env(safe-area-inset-bottom, 0px) + 10px); background: rgba(15,18,23,.96); border-top: 1px solid var(--line); }
+  #tut .in { max-width: 500px; margin: 0 auto; display: grid; grid-template-columns: 68px minmax(0, 1fr); gap: 8px; align-items: start; }
+  #tut .tfig { position: relative; height: 64px; }
+  #tut .fig { left: 50%; top: 2px; transform: scale(1.4); transform-origin: top center; cursor: default; }
+  #tut .tsay { font-family: var(--serif); font-size: 14.5px; line-height: 1.55; margin: 0; }
+  #tut .tsys { font-size: 12px; color: var(--muted); margin: 3px 0 0; }
+  #tut .tact { display: flex; gap: 10px; align-items: center; justify-content: flex-end; margin-top: 6px; }
+  #tut .tskip { background: none; border: 0; padding: 4px 2px; font-size: 11.5px; color: var(--muted); text-decoration: underline; }
+  body.tutoring .app { padding-bottom: 170px; }
+  .tut-hl { outline: 2px solid var(--gold); outline-offset: -2px; animation: tutPulse 0.9s ease-in-out infinite alternate; }
+  .fig.tut-hl { outline-offset: 2px; border-radius: 4px; }
+  @keyframes tutPulse { from { outline-color: rgba(221,185,94,.35); } to { outline-color: rgba(221,185,94,1); } }
 </style>
 
 <div class="app">
-  <div class="top"><div><h1>그렌바흐 대공령 <small class="ver">v0.9.6</small></h1><div class="date" id="date"></div></div><div class="speed" id="speed"></div></div>
+  <div class="top"><div><h1>그렌바흐 대공령 <small class="ver">v0.9.7</small></h1></div><div class="speed" id="speed"></div></div>
+  <div class="date" id="date"></div>
   <div class="res" id="res"></div>
   <div class="crib" id="crib"></div>
   <div id="banner"></div>
   <div class="world" id="world"><div class="mount"></div><div class="mount b"></div><canvas class="snow" id="snow"></canvas></div>
   <div class="panel" id="panel"></div>
 </div>
+<div id="tut" hidden></div>
 <div id="modal"></div>
 
 <script src="data.js"></script>
@@ -192,10 +214,6 @@
   const BODY = { str: '#B5652E', dex: '#B89A3E', heart: '#3F8A5E' };
   const clamp = (v, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, v));
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const store = {
-    get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
-    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
-  };
   let G, loop = null, raidLoop = null, acc = 0, last = 0, queue = [], showing = false;
   let geo = null; // 방 좌표
   const figs = new Map(); // folk id → {el, x, tx, wait}
@@ -209,13 +227,16 @@
       julian: { health: 80, bond: 15 }, sus: 20, speed: 1, sel: null, raid: null, raidsWon: 0,
       ms: 0, absentUntil: -1, blizzardUntil: -1, log: [], over: null, refugeeIdx: 0, captiveIdx: 0,
       expeditions: [], candidates: [], wandererIdx: 0, levels: {}, building: {}, upgrading: {}, armory: [], crafting: null, merchant: null, graveyard: [],
+      leoHere: false, leoState: 'parlor', leoReturnDay: -1, berk: false, berkDone: false, tut: null,
     };
     figs.forEach(f => f.el.remove()); figs.clear();
-    say('레오폴트 비젠이 성에 묵기 시작했다.');
-    buildCastle();
-    event({ img: 'media/ottilie.webp', eyebrow: '겨울 1일', title: '봄이 오면 황후궁 감찰단이 온다', text:
-      '죽은 줄 알았던 황자를 찾는 감찰단이 봄 1일(겨울 134일 뒤)에 온다. 먼저 와서 묵는 레오폴트가 보고 들은 것(의심)이 그대로 감찰단의 손에 넘어간다.\n\n성에는 성문·응접실·요람실뿐이다. 식량 30·장작 30으로는 열흘이다. 빈 칸을 눌러 주방과 벌목장부터 짓고(금화 40씩, 2일) 리젤과 브루노를 들인다.\n· 의심 40 미만이면 감찰단은 빈손으로 돌아간다.\n· 의심 70 이상이면 성을 샅샅이 뒤진다.\n\n영지민을 손가락으로 끌어 방에 놓으면 그 방에서 일한다. 몸 색과 방이 맞으면(적성) 25% 더 한다.\n\n· 요람실(아래 오른쪽)이 비면 율리안이 운다.\n· 응접실이 비면 레오폴트가 성을 엿보고, 의심이 쌓인다.\n· 북쪽에서 호르칸이 내려온다. 싸움은 성문에서만 한다. 성문이 비면 호르칸이 성문을 부수고 요람실로 간다.\n· 일하는 사람은 체력이 차지 않는다. 지치면 안뜰이나 숙소에서 쉬게 한다. 쓰러진 채 굶으면 죽는다.\n· 겨울은 추위 2. 장작이 하루 2씩 든다. 눈보라면 4.\n· 빈 칸을 누르면 2일에 걸쳐 방을 짓고, 지은 방을 누르면 3일에 걸쳐 올린다. 대장간에서 무기를 벼려 성문 무기고에 둔다.\n\n율리안을 빼앗기면 끝이다.',
-      choices: [{ label: '성으로 들어간다' }] });
+    buildCastle(); renderTut();
+    scene([
+      { img: 'media/ottilie.webp', who: '겨울 30일 · 성문', text: '눈보라 속에서 늙은 유모 오틸리에가 성문을 두드렸다. 품에는 생후 서른 날 된 아기가 있었다.' },
+      { img: 'media/julian.webp', who: '오틸리에', text: '"리셀라 님이 가시며 맡기셨습니다, 마님. 이름은 율리안, 겨울 첫날에 났습니다."' },
+      { img: 'media/eleanor.webp', who: '엘레노어', text: '"수도는 황자가 죽었다고 하겠지. 황후궁이 믿지 않으면 사람을 보낼 거고." 오틸리에는 그날 밤 추위를 이기지 못했다.' },
+      { who: '봄 1일 · 베른하르트', text: '"각하, 아이는 요한나가 젖을 물렸습니다. 성은… 보시는 대로입니다."' },
+    ], [{ label: '성을 둘러본다', fn: startTut }]);
     start();
   }
   const slots = () => Object.keys(G.rooms);
@@ -233,7 +254,11 @@
   const eleanor = () => G.folk.find(f => f.hero);
   const away = () => G.day < G.absentUntil;
   // 달력 대신 계절과 날 수로 센다 — 11월~3월 달력으로는 얼마나 남았는지 감이 오지 않았다
-  const dateOf = d => d < K.totalDays ? `겨울 ${d + 1}일` : `봄 ${d - K.totalDays + 1}일`;
+  // 해는 끝나지 않고 이어진다. 일정(상인·습격·눈보라·감찰)은 해 안의 날(doy)로 반복한다
+  const yearOf = d => Math.floor(d / K.totalDays) + 1;
+  const doy = () => G.day % K.totalDays;
+  const dateOf = d => `${yearOf(d)}년 ${K.seasons[Math.floor((d % K.totalDays) / K.seasonDays)]} ${d % K.seasonDays + 1}일`;
+  const raidF = r => Math.round(r.n * r.h * (1 + B.raidYearMult * (yearOf(G.day) - 1)));
   const say = t => { G.log.unshift(`${dateOf(G.day)} · ${t}`); G.log.length = Math.min(G.log.length, 20); };
   const sum = (arr, k) => arr.reduce((s, f) => s + f[k], 0);
   const best = f => ['str', 'dex', 'heart'].sort((a, b) => f[b] - f[a])[0];
@@ -243,8 +268,8 @@
   const apt = (f, t) => R[t]?.stat && best(f) === R[t].stat ? B.aptitude : 1;
   const eff = (f, slot) => f[R[typeOf(slot)].stat] * apt(f, typeOf(slot));
   const sumEff = (list, slot) => list.reduce((a, f) => a + eff(f, slot), 0);
-  // 추위: 겨울 기본 2, 눈보라 +2. 장작 소비·정찰 부상·장작이 없을 때의 피해가 모두 이 수치에서 나온다
-  const COLD = () => B.coldWinter + (G.day < G.blizzardUntil ? B.blizzardCold : 0);
+  // 추위: 계절 기본(봄 1 · 여름 0 · 가을 1 · 겨울 2) + 눈보라 2. 장작 소비·정찰 부상·장작이 없을 때의 피해가 모두 이 수치에서 나온다
+  const COLD = () => K.coldBySeason[Math.floor(G.day / K.seasonDays) % 4] + (G.day < G.blizzardUntil ? B.blizzardCold : 0);
   const need = L => B.xpBase * Math.pow(L, B.xpExp);
   function levelUp(f) {
     while (f.xp >= need(f.level)) { // 레벨 상한 없음. 주능력치는 10에서 멈추고 그 뒤로는 최대 체력만 는다
@@ -275,8 +300,8 @@
     const care = working(slotOf('nursery')), parlor = working(slotOf('parlor'));
     return {
       food: tot('food') - eats(), wood: tot('wood') - woodUse(), gold: tot('gold'),
-      // 레오폴트는 엘레노어와 함께 수도에 가 있으니 그동안 의심이 쌓이지 않는다
-      sus: away() ? 0 : B.susBase - sumEff(parlor, slotOf('parlor')) * B.susParlor * firstMult('parlor'), bond: (sumEff(care, slotOf('nursery')) * 0.04 + (care.some(f => f.hero) ? 0.8 : 0)) * firstMult('nursery'), care,
+      // 의심은 레오폴트가 성에 온 뒤(봄 8일)부터 쌓인다. 엘레노어가 국경 성에 가 있어도 그는 성에 남아 계속 본다
+      sus: !G.leoHere ? 0 : B.susBase - sumEff(parlor, slotOf('parlor')) * B.susParlor * firstMult('parlor'), bond: (sumEff(care, slotOf('nursery')) * 0.04 + (care.some(f => f.hero) ? 0.8 : 0)) * firstMult('nursery'), care,
     };
   }
 
@@ -284,9 +309,10 @@
     clearInterval(loop); last = performance.now(); acc = 0;
     loop = setInterval(() => {
       const now = performance.now(), dt = now - last; last = now;
-      if (G.over || G.raid || showing || !G.speed) return;
+      tutCheck();
+      if (G.over || G.raid || showing || !G.speed || tutPaused()) return;
       acc += dt * G.speed;
-      while (acc >= DAY_MS && !G.over && !G.raid && !showing) { acc -= DAY_MS; dayTick(); }
+      while (acc >= DAY_MS && !G.over && !G.raid && !showing && !tutPaused()) { acc -= DAY_MS; dayTick(); }
     }, 100);
   }
   function dayTick() {
@@ -301,7 +327,7 @@
     for (const s of Object.keys(G.building)) if (G.building[s] <= G.day) { delete G.building[s]; say(`${R[typeOf(s)].name}을(를) 다 지었다.`); buildCastle(); }
     for (const s of Object.keys(G.upgrading)) if (G.upgrading[s].doneDay <= G.day) { G.levels[s] = G.upgrading[s].to; say(`${R[typeOf(s)].name}이(가) Lv${G.levels[s]}이 되었다.`); delete G.upgrading[s]; }
     if (G.crafting && G.crafting.doneDay <= G.day) { const w = K.weapons.find(x => x.id === G.crafting.weapon); G.armory.push({ id: w.id, dur: B.durability }); say(`대장간에서 ${w.name}을(를) 벼렸다. 성문 무기고에 두었다.`); pop(G.crafting.slot, w.name, 'var(--gold)'); G.crafting = null; }
-    if (K.merchant.days.includes(G.day)) { G.merchant = { until: G.day + 1, gold: K.merchant.purse }; say(`소금 장수가 안뜰에 왔다. 지갑에 금화 ${K.merchant.purse}. 내일 떠난다.`); }
+    if (K.merchant.days.includes(doy())) { G.merchant = { until: G.day + K.merchant.stay, gold: K.merchant.purse }; say(`소금 장수 도착 · 지갑 금화 ${K.merchant.purse} · ${K.merchant.stay}일 머문다`); }
     else if (G.merchant && G.day >= G.merchant.until) { G.merchant = null; say('소금 장수가 떠났다.'); }
     const cold = COLD();
     for (const f of [...G.folk]) {
@@ -323,26 +349,38 @@
     if (G.res.wood <= 0) say('장작이 떨어졌다. 성이 식어 간다.');
     j.health = clamp(j.health); j.bond = clamp(j.bond + d.bond);
     G.sus = clamp(G.sus + d.sus);
-    if (G.day === G.absentUntil) say('엘레노어와 레오폴트가 수도에서 돌아왔다.');
+    if (G.day === G.absentUntil) { const e = eleanor(); if (e) e.lead = Math.min(10, e.lead + 1); say('엘레노어가 국경 성에서 돌아왔다. 통솔 +1'); }
     if (j.health <= 0) return endGame('sick');
     if (G.sus >= 100) return endGame('taken');
     if (!G.folk.some(f => !f.hero)) return endGame('empty');
-    const m = K.milestones[G.ms]; if (m && j.bond >= m[0]) { G.ms++; event({ img: 'media/julian.webp', eyebrow: '성장 기록', title: m[1], text: m[2], choices: [{ label: '계속' }] }); }
-    for (const r of K.raids) { if (G.day === r.day - 3) say(`경보: ${r.name}(병력 ${r.n} × 힘 ${r.h} = 전투력 ${r.n * r.h})가 산맥을 넘었다. 사흘 뒤 도착.`); if (G.day === r.day) startRaid(r); }
-    if (K.refugeeDays.includes(G.day)) refugee();
+    const m = K.milestones[G.ms]; if (m && j.bond >= m[0]) { G.ms++; scene([{ img: 'media/julian.webp', who: `성장 기록 · ${m[1]}`, text: m[2] }]); }
+    for (const r of K.raids) { if (doy() === r.day - 3) say(`경보: ${r.name} · 전투력 ${raidF(r)} · 사흘 뒤 도착`); if (doy() === r.day) startRaid(r); }
+    if (K.refugeeDays.includes(doy())) refugee();
     returnScouts();
     story();
-    if (G.day >= K.totalDays && !G.over) finale();
+    if (doy() === 0 && G.day > 0 && !G.over) inspection();
+    rollLeo();
     renderHud();
   }
   function story() {
-    const d = G.day;
-    if (d === 5) event({ img: 'media/leopold.webp', eyebrow: '겨울 6일', title: '황후궁의 손님', text: '"봄에 감찰단이 오기 전까지 묵겠습니다, 각하. 이 성은 겨울에도 아이 울음이 들리는군요."\n\n레오폴트가 보고 들은 것이 의심으로 쌓이고, 봄 1일 감찰단에 넘어간다. 응접실에 마음이 따뜻한 영지민을 두면 그가 레오폴트의 시간을 붙잡아 둔다. 비워 두면 레오폴트가 성 안을 엿보러 다닌다.', choices: [{ label: '…' }] });
-    if (d === 27) event({ img: 'media/leopold.webp', eyebrow: '겨울 28일', title: '수도 추모 미사', text: '레오폴트가 동행을 청한다. 가면 의심은 풀리지만, 성에서 가장 강한 엘레노어가 열흘 동안 성을 비운다. 레오폴트도 함께 떠난다.', choices: [
-      { label: '간다', sub: '의심 −25 · 지략 +0.5 · 엘레노어 10일 부재 (그동안 레오폴트도 없음)', fn: () => { G.sus = clamp(G.sus - 25); eleanor().wit = Math.min(10, eleanor().wit + 0.5); G.absentUntil = G.day + 10; eleanor().room = null; say('엘레노어가 레오폴트와 함께 수도로 떠났다.'); } },
-      { label: '가지 않는다', sub: '의심 +15 · 지략 +0.5', fn: () => { G.sus = clamp(G.sus + 15); eleanor().wit = Math.min(10, eleanor().wit + 0.5); say('레오폴트가 수도로 서신을 보냈다.'); } },
-    ] });
-    if (d === 85) { G.blizzardUntil = d + 12; event({ img: 'media/stills/backdoor.jpg', eyebrow: '겨울 86일', title: '긴 눈보라', text: '열이틀 동안 눈보라가 몰아친다. 추위가 2에서 4가 되어 장작이 하루 4씩 들고, 정찰이 더 위험해진다.', choices: [{ label: '벌목장을 챙긴다' }] }); }
+    const d = doy();
+    // 레오폴트가 오기 전에는 의심이 움직이지 않는다 — 컷씬 버튼이 아니라 이 날 자체로 켠다(봇·검사가 dayTick만 불러도 같게)
+    if (G.day === 7) { G.leoHere = true; say('레오폴트 비젠이 성에 묵기 시작했다.'); scene([
+      { who: '베른하르트', text: '"각하, 황후궁에서 손님입니다. 레오폴트 비젠 경 — 이듬해 봄 감찰단이 올 때까지 묵겠답니다."' },
+      { who: '레오폴트', text: '"이 성은 아이 울음이 들리는군요, 각하." 그는 응접실 의자에 앉아 성 안을 둘러보았다.' },
+    ], [{ label: '맞이한다', sub: '지금부터 의심이 쌓인다 · 응접실 사람의 마음이 막는다' }]); }
+    if (G.day === G.leoReturnDay) { G.leoHere = true; say('레오폴트가 돌아왔다.'); }
+    if (d === 67) scene([
+      { who: '베른하르트', text: '"베르크 기사령에서 전갈입니다. 국경 성의 겨울 채비를 각하와 함께 보고 싶답니다."' },
+      { who: '엘레노어', text: '열이틀 길이었다. 레오폴트는 성에 남는다.' },
+    ], [
+      { label: '간다', sub: G.berkDone ? '엘레노어 12일 부재 · 돌아오면 통솔 +1 · 지략 +0.5' : '엘레노어 12일 부재 · 돌아오면 통솔 +1 · 겨울 1일에 베르크 기사 2명 합류', fn: () => { const e = eleanor(); G.absentUntil = G.day + 12; e.room = null; e.wit = Math.min(10, e.wit + 0.5); G.berk = true; say('엘레노어가 국경 성으로 떠났다. 12일 부재'); } },
+      { label: '가지 않는다', sub: '지략 +0.5 · 베르크와 소원해진다', fn: () => { const e = eleanor(); e.wit = Math.min(10, e.wit + 0.5); say('베르크 기사령에 거절 서신을 보냈다.'); } },
+    ]);
+    // 기사는 처음 간 해에 한 번만 온다
+    if (d === 90 && G.berk && !G.berkDone) { G.berkDone = true; K.knights.forEach((k, i) => G.folk.push(mkFolk(k, { id: 'k' + i }))); say('베르크 기사령에서 기사 둘이 왔다.'); }
+    if (d === K.blizzard.day) { G.blizzardUntil = G.day + K.blizzard.days; scene([{ who: '겨울 8일', text: '열이틀의 눈보라가 산맥을 넘어왔다.' }],
+      [{ label: '벌목장을 챙긴다', sub: `추위 ${COLD() - B.blizzardCold} → ${COLD()} · 장작 하루 ${woodUse()} · 정찰 부상 +${B.blizzardCold * 3}%p` }]); }
   }
   // 받으면 하루 식량 수지가 어떻게 바뀌는지 — "식량 0.5 추가"만으로는 늘어나는 게 소비인지 보상인지 알 수 없었다
   const eatNote = () => {
@@ -351,13 +389,15 @@
     return `식량 하루 ${fmt(f)} → ${fmt(f - 0.5)} (한 사람이 하루 0.5를 먹는다)${tail}`;
   };
   function refugee() {
-    if (G.refugeeIdx >= K.refugees.length) return;
-    const p = K.refugees[G.refugeeIdx++];
-    event({ eyebrow: dateOf(G.day), title: '성문 앞의 피난민', text: `${p.role} ${p.name}이(가) 성문을 두드린다.\n힘 ${p.str} · 솜씨 ${p.dex} · 마음 ${p.heart}${G.folk.length >= popCap() ? '\n\n정원이 찼다. 숙소를 지어야 받을 수 있다.' : ''}`, choices: [
+    // 1년째는 정해진 피난민 다섯, 그 뒤로는 정찰 후보와 같은 떠돌이 풀에서 순서대로(정찰이 먼저 데려간 사람은 건너뛴다)
+    const p = yearOf(G.day) === 1 ? K.refugees[G.refugeeIdx++] : G.wandererIdx < K.wanderers.length ? K.wanderers[G.wandererIdx++] : null;
+    if (!p) return;
+    event({ eyebrow: dateOf(G.day), title: '성문 앞의 피난민', text: `${p.role} ${p.name} · 힘 ${p.str} · 솜씨 ${p.dex} · 마음 ${p.heart}${FULL()}`, choices: [
       { label: '받아들인다', sub: eatNote(), disabled: () => G.folk.length >= popCap(), fn: () => { G.folk.push(mkFolk(p, { id: 'p' + G.day })); say(`${p.name}이(가) 영지민이 되었다.`); } },
       { label: '돌려보낸다' },
     ] });
   }
+  const FULL = () => G.folk.length >= popCap() ? '\n정원이 찼다 — 숙소가 필요하다' : '';
   const HIDE_MAX = 30; // 성문이 무너졌을 때 호르칸 체력이 이 값 이하여야 요람실에서 숨어 버틸 수 있다
   const GATE_HOLD = 30, GATE_BREAK = 3; // 성문 버팀 30을 1틱(0.9초)에 3씩 — 성문이 비고 약 9초면 부서진다
   // ═════════ 정찰 ═════════
@@ -395,7 +435,7 @@
     }
   }
   function candidateSheet(c) {
-    event({ eyebrow: '안뜰의 후보', title: `${c.role} ${c.name}`, text: `${c.line}\n힘 ${c.str} · 솜씨 ${c.dex} · 마음 ${c.heart}${G.folk.length >= popCap() ? '\n\n정원이 찼다. 숙소를 지어야 받을 수 있다.' : ''}`, choices: [
+    event({ eyebrow: '안뜰의 후보', title: `${c.role} ${c.name}`, text: `${c.line}\n힘 ${c.str} · 솜씨 ${c.dex} · 마음 ${c.heart}${FULL()}`, choices: [
       { label: '영지민으로 받는다', sub: `${eatNote()} · 정원 ${G.folk.length}/${popCap()}`, disabled: () => G.folk.length >= popCap(), fn: () => { G.candidates = G.candidates.filter(x => x !== c); G.folk.push(mkFolk(c)); say(`${c.name}이(가) 영지민이 되었다.`); } },
       { label: '돌려보낸다', fn: () => { G.candidates = G.candidates.filter(x => x !== c); say(`${c.name}이(가) 성을 떠났다.`); } },
       { label: '안뜰에서 더 기다리게 한다' },
@@ -469,7 +509,7 @@
       // 상인의 지갑이 비면 더 못 판다 — 무제한이면 재고를 다 금화로 바꿔 버린다
       { label: `${nm[res]} ${q}을 판다 · 금화 ${price(res, q, false)}`, sub: `기준가 × ${B.mSell} · 상인 지갑 금화 ${G.merchant.gold}`, disabled: () => G.res[res] < q || G.merchant.gold < price(res, q, false), fn: () => { G.res.gold += price(res, q, false); G.merchant.gold -= price(res, q, false); G.res[res] -= q; say(`상인에게 ${nm[res]} ${q}을 팔았다. 금화 +${price(res, q, false)}`); } },
     ]);
-    event({ eyebrow: '안뜰의 상인', title: '소금 장수', text: `"북부 값은 북부 값이지요." 살 때는 기준가의 ${B.mBuy}배, 팔 때는 ${B.mSell}배다. 겨울에는 장작이 두 배다. 지갑에 든 금화 ${G.merchant.gold}까지만 사 간다. 내일 떠난다.\n\n지금 금화 ${Math.floor(G.res.gold)} · 식량 ${Math.floor(G.res.food)} · 장작 ${Math.floor(G.res.wood)}`, choices: [...rows, { label: '보낸다' }] });
+    event({ eyebrow: '안뜰의 상인', title: '소금 장수', text: `살 때 ×${B.mBuy} · 팔 때 ×${B.mSell} · 겨울 장작 ×2 · 지갑 금화 ${G.merchant.gold} · ${G.merchant.until - G.day}일 뒤 떠난다\n금화 ${Math.floor(G.res.gold)} · 식량 ${Math.floor(G.res.food)} · 장작 ${Math.floor(G.res.wood)}`, choices: [...rows, { label: '보낸다' }] });
   }
 
   // 병영 사람은 습격 때 성문으로 나가 함께 싸운다
@@ -480,7 +520,7 @@
   const leadBonus = () => { const e = eleanor(); return e && !away() && !e.hurt ? e.lead : 0; };
   const defense = () => defenders().reduce((a, f) => a + defStr(f), 0) + gateBonus() + leadBonus();
   function startRaid(r) {
-    const F = r.n * r.h;
+    const F = raidF(r);
     G.raid = { ...r, F, hp: F * B.raidHpK, max: F * B.raidHpK, atk: F * B.raidAtk, breakPerTick: 2 + F * 0.04, gateHp: gateHold(), fought: [] };
     say(`${r.name}(전투력 ${F})가 성문에 닿았다!`);
     renderHud(); syncRooms();
@@ -528,7 +568,7 @@
     const c = K.captives[G.captiveIdx];
     if (c) {
       G.captiveIdx++;
-      event({ eyebrow: '습격 격퇴', title: '호르칸 포로', text: `${c.role} ${c.name}. 무릎을 꿇었지만 눈은 꺾이지 않았다.\n힘 ${c.str} · 솜씨 ${c.dex} · 마음 ${c.heart}\n\n받아들이면 강한 손이 생긴다. 추위에 강해 정찰에서 덜 다친다. 하지만 황후궁은 "야만인을 품은 대공"을 좋아하지 않는다.${G.folk.length >= popCap() ? '\n\n정원이 찼다. 숙소를 지어야 받을 수 있다.' : ''}`, choices: [
+      event({ eyebrow: '습격 격퇴', title: '호르칸 포로', text: `${c.role} ${c.name} · 힘 ${c.str} · 솜씨 ${c.dex} · 마음 ${c.heart}\n추위에 강하다 · 받으면 의심 +5${FULL()}`, choices: [
         { label: '영지민으로 받아들인다', sub: `의심 +5 · ${eatNote()}`, disabled: () => G.folk.length >= popCap(), fn: () => { G.folk.push(mkFolk(c, { id: 'c' + G.day, hp: 60, raiderLook: true })); G.sus = clamp(G.sus + 5); say(`${c.name}이(가) 늑대 문장 아래로 들어왔다.`); } },
         { label: '산맥 너머로 돌려보낸다' },
       ] });
@@ -538,45 +578,101 @@
   // 감찰단이 수색할 때 율리안을 숨기는 힘 — 품에 익은 아이일수록, 요람실 사람이 따뜻할수록 울지 않는다
   const hideScore = () => Math.round(G.julian.bond + sumEff(working(slotOf('nursery')), slotOf('nursery')) * 3 + (eleanor() && !away() ? eleanor().wit * 3 : 0));
   const SUS_CLEAN = 40, SUS_SEARCH = 70;
-  function finale() {
-    const sus = Math.round(G.sus);
-    if (sus < SUS_CLEAN) return endGame('clean');
-    if (sus < SUS_SEARCH) return endGame('watched');
-    const h = hideScore();
-    event({ eyebrow: '봄 1일 · 감찰단 도착', title: '감찰단이 성을 뒤진다', text: `의심 ${sus}. 레오폴트의 보고를 받은 감찰단이 방마다 문을 연다.\n\n숨기기 = 애착 ${Math.round(G.julian.bond)} + 요람실 사람의 마음 × 3 + 엘레노어 지략 × 3 → ${h}\n의심(${sus})보다 크면 율리안을 끝까지 숨긴다.`, choices: [
-      { label: '숨을 죽인다', fn: () => endGame(h > sus ? 'hidden' : 'taken') },
-    ] });
+  // 감찰은 해마다 봄 1일에 오는 사건이다 — 결과는 효과로 남고 게임은 이어진다. 수색에 실패할 때만 끝난다
+  function inspection() {
+    const sus = Math.round(G.sus), who = `${dateOf(G.day)} · 감찰단`;
+    if (sus < SUS_CLEAN) {
+      G.sus = 10; G.leoHere = false; G.leoReturnDay = G.day + 90; say('감찰단이 빈손으로 돌아갔다. 레오폴트도 떠났다.');
+      return scene([{ who, text: '감찰단장은 장부 몇 장을 넘기고는 하품을 했다. 레오폴트도 그들과 함께 남쪽으로 떠났다.' }], [{ label: '…', sub: '의심 → 10 · 레오폴트 떠남 (겨울 1일 귀환)' }]);
+    }
+    if (sus < SUS_SEARCH) {
+      G.sus = clamp(G.sus - 15); say('감찰단이 돌아갔다. 레오폴트는 남았다.');
+      return scene([{ who, text: '감찰단은 아무것도 찾지 못하고 돌아갔다. 레오폴트는 떠나지 않았다.' }], [{ label: '…', sub: '의심 −15 · 레오폴트는 남는다' }]);
+    }
+    const h = hideScore(), open = { who, text: '레오폴트의 보고를 받은 감찰단이 방마다 문을 열었다.' };
+    if (h <= sus) { scene([open]); return endGame('taken'); }
+    G.sus = clamp(G.sus - 25); G.julian.health = clamp(G.julian.health - 10); say(`수색을 버텼다. 숨기기 ${h} > 의심 ${sus}`);
+    scene([open, { who: '요람실', text: '요람은 비어 있었다. 굴뚝 뒤 좁은 틈에서 율리안은 끝까지 울지 않았다.' }], [{ label: '…', sub: '의심 −25 · 율리안 건강 −10' }]);
   }
   const ENDS = {
-    clean: ['빈손의 감찰단', '감찰단장은 장부 몇 장을 넘기고는 하품을 했다. "북부는 춥기만 하군." 레오폴트도 그들과 함께 남쪽으로 떠났다.\n그날 밤 율리안이 망토 깃을 붙잡았다.'],
-    watched: ['남겨진 눈', '감찰단은 아무것도 찾지 못하고 돌아갔다. 하지만 레오폴트는 떠나지 않았다.\n"봄 공기가 좋군요, 각하. 조금 더 머물겠습니다."'],
-    hidden: ['굴뚝 뒤의 숨소리', '감찰단이 요람실 문을 열었을 때, 요람은 비어 있었다. 굴뚝 뒤 좁은 틈에서 율리안은 끝까지 울지 않았다.\n이번에는 버텼다. 다음 겨울에도 그럴 수 있을까.'],
     taken: ['빈 관의 주인', '감찰단장이 굴뚝 뒤에서 아이를 안아 들었다.\n"제3황자 전하를 모시러 왔습니다. 관이 비어 있으면 안 되니까요."'],
     raided: ['늑대 없는 요람', '호르칸이 요람실까지 들이닥쳤다. 혼란 속에서 율리안을 안고 나간 건 레오폴트였다.\n"전하는 제가 안전한 곳으로 모시겠습니다."'],
     empty: ['빈 성', '마지막 영지민이 눈 속에 묻혔다. 엘레노어 혼자서는 성문도, 요람도, 응접실도 지킬 수 없다.\n레오폴트가 조용히 수도로 서신을 보냈다.'],
-    sick: ['수녀원의 겨울', '열이 내리지 않았다. 오틸리에가 율리안을 안고 수녀원으로 달렸다. 그곳에 황후궁 사람들이 있었다.'],
+    sick: ['수녀원의 겨울', '열이 내리지 않았다. 요한나가 율리안을 안고 수녀원으로 달렸다. 그곳에 황후궁 사람들이 있었다.'],
   };
   function endGame(kind) {
     G.over = kind; clearInterval(raidLoop); G.raid = null;
-    const got = store.get('keep-endings-2', []); if (!got.includes(kind)) { got.push(kind); store.set('keep-endings-2', got); } // 엔딩이 바뀌어 저장 키를 새로 쓴다
-    const [title, text] = ENDS[kind], lost = ['taken', 'raided', 'sick', 'empty'].includes(kind);
-    const sus = Math.round(G.sus);
-    const why = { clean: `감찰단이 왔을 때 의심은 ${sus}, 기준 ${SUS_CLEAN} 미만이었다.`, watched: `감찰단이 왔을 때 의심은 ${sus}(${SUS_CLEAN}~${SUS_SEARCH - 1} 구간). 감찰단은 돌아갔지만 레오폴트가 남았다.`, hidden: `의심 ${sus}에서 수색을 받았지만, 숨기기 점수(${hideScore()})가 의심보다 컸다.`,
+    const [title, text] = ENDS[kind], sus = Math.round(G.sus);
+    const why = {
       taken: sus >= 100 ? '의심이 100이 되었다.' : `수색 때 숨기기 점수(${hideScore()})가 의심(${sus})을 넘지 못했다.`, raided: '성문이 무너졌을 때 요람실이 비어 있었거나, 호르칸이 아직 강했다(체력 30 초과).', sick: '율리안의 건강이 0이 되었다.', empty: '엘레노어 외 영지민이 모두 죽었다.' }[kind];
-    const grade = { clean: '가장 좋은 엔딩', watched: '좋은 엔딩', hidden: '보통 엔딩' }[kind];
-    // 겨울을 넘긴 엔딩을 패배로 읽는 일이 잦았다 — 승패와 등급을 맨 위에 적는다
-    event({ eyebrow: lost ? `게임 오버 · ${dateOf(G.day)} · 수집 ${got.length}/7` : `승리 · 감찰을 넘겼다 · ${grade} · 수집 ${got.length}/7`, title, text: text + `\n\n${lost ? '진 이유' : '이 엔딩인 이유'}: ${why}${lost ? '' : '\n\n율리안은 살아서 봄을 맞는다. 다음 겨울(율리안 1세)은 개발 예정이다.'}\n\n버틴 날 ${G.day}일 · 막아 낸 습격 ${G.raidsWon}번 · 영지민 ${G.folk.length}명 · 율리안의 애착 ${Math.round(G.julian.bond)}`,
+    event({ eyebrow: `게임 오버 · ${dateOf(G.day)}`, title, text: text + `\n\n이유: ${why}\n버틴 날 ${G.day}일 · 습격 ${G.raidsWon}승 · 영지민 ${G.folk.length}명 · 애착 ${Math.round(G.julian.bond)}`,
       choices: [{ label: '처음부터 다시', fn: () => setTimeout(newGame, 0) }] });
     renderHud(); syncRooms();
   }
 
   // ═════════ 모달 ═════════
   function event(e) { queue.push(e); pump(); }
+  // 컷씬: 한 장씩 큐에 넣는다. 마지막 장만 선택지를 가진다
+  function scene(pages, finalChoices) {
+    pages.forEach((pg, i) => event({ img: pg.img, eyebrow: pg.who, text: pg.text, dots: [i, pages.length],
+      choices: i < pages.length - 1 ? [{ label: '다음' }] : finalChoices || [{ label: '…' }] }));
+  }
+
+  // ═════════ 튜토리얼 ═════════
+  // 정보 단계(next)는 버튼으로, 행동 단계(done)는 조건이 차면 넘어간다. run 단계만 시간이 흐른다
+  const roomEl = t => world.querySelector(`.room[data-s="${slotOf(t)}"]`);
+  const figEl = id => figs.get(id)?.el;
+  const inRoom = (id, t) => { const f = G.folk.find(x => x.id === id); return !f || typeOf(f.room) === t; };
+  const built = t => slots().some(s => typeOf(s) === t && !G.building[s]);
+  const TUT = [
+    { say: '"각하, 성에는 성문과 요람실, 응접실뿐입니다. 식량은 열흘치입니다."', sys: '빈 칸 → 주방 · 금화 40 · 2일', done: () => !!slotOf('kitchen'), hl: () => [...world.querySelectorAll('.room.empty')] },
+    { say: '"장작도 곧 바닥납니다. 벌목장을 지으십시오."', sys: '빈 칸 → 벌목장 · 금화 40 · 2일', done: () => !!slotOf('lumber'), hl: () => [...world.querySelectorAll('.room.empty')] },
+    { say: '"짓는 동안 성을 보시지요. 성문은 하인츠와 각하가 지키십니다. 호르칸은 성문에서만 막습니다."', sys: '방어 = 성문 사람의 힘 합 + 6 + 통솔', next: true, hl: () => [roomEl('gate')] },
+    { say: '"요람실의 요한나가 율리안에게 젖을 물립니다. 비면 아이가 웁니다."', sys: '요람실이 비면 율리안 건강 −8/일', next: true, hl: () => [roomEl('nursery')] },
+    { say: '"응접실은 제가 맡겠습니다. 손님이 오면 말씀드리지요."', sys: '응접실: 손님의 의심을 붙잡아 둔다', next: true },
+    { say: '"이틀이 지납니다…"', sys: '짓는 중 — 완성되면 사람을 둘 수 있다', run: true, done: () => built('kitchen') && built('lumber') },
+    { say: '"주방이 섰습니다. 리젤을 주방으로 끌어다 놓으십시오. 몸 색이 노란 사람은 솜씨가 좋습니다."', sys: '사람을 끌어 방에 놓는다 · 노랑 = 솜씨 · 적성 +25%', done: () => inRoom('liesel', 'kitchen'), hl: () => [figEl('liesel'), roomEl('kitchen')] },
+    { say: '"브루노는 벌목장으로."', sys: '주황 = 힘', done: () => inRoom('bruno', 'lumber'), hl: () => [figEl('bruno'), roomEl('lumber')] },
+    { say: '"이제 겨울까지 버티는 일입니다. 자원 칸을 누르면 수지가 보입니다."', sys: '자원 칸 → 하루 수지 · 바닥까지 남은 날', next: true, hl: () => [$('res')] },
+  ];
+  // 레오폴트가 하루 동안 하는 일 — 그림만 바뀐다(의심은 응접실 사람 유무로만 정해진다). 하루에 한 번만 뽑아 왔다 갔다 하지 않게 한다
+  function rollLeo() {
+    if (!G.leoHere) return;
+    const r = Math.random();
+    G.leoState = !working(slotOf('parlor')).length ? 'peek' : r < 0.5 ? 'parlor' : r < 0.8 ? 'yard' : 'room';
+  }
+  // 하루 중에 응접실 사람을 빼거나 넣으면 그 자리에서 맞춘다 — 빈 응접실에 앉아 있거나 사람이 있는데 엿보면 안 된다
+  const leoView = () => !working(slotOf('parlor')).length ? 'peek' : G.leoState === 'peek' ? 'parlor' : G.leoState;
+  const tutPaused = () => G.tut != null && !TUT[G.tut].run;
+  function startTut() { G.tut = 0; renderTut(true); }
+  function tutAdvance() { G.tut = G.tut + 1 < TUT.length ? G.tut + 1 : null; renderTut(true); }
+  function tutCheck() { if (G && G.tut != null && TUT[G.tut].done && TUT[G.tut].done()) tutAdvance(); }
+  function skipTutorial() { if (!G) return; G.tut = null; renderTut(); }
+  function applyTutHl() {
+    document.querySelectorAll('.tut-hl').forEach(e => e.classList.remove('tut-hl'));
+    const s = G && G.tut != null ? TUT[G.tut] : null; if (!s?.hl) return [];
+    const els = s.hl().filter(Boolean); els.forEach(e => e.classList.add('tut-hl')); return els;
+  }
+  function renderTut(moved) {
+    const el = $('tut'), s = G && G.tut != null ? TUT[G.tut] : null;
+    document.body.classList.toggle('tutoring', !!s);
+    el.hidden = !s;
+    if (!s) { el.innerHTML = ''; applyTutHl(); return; }
+    const b = K.folk.find(f => f.id === 'bernhard');
+    el.innerHTML = `<div class="in"><div class="tfig"><div class="fig npc">${figHTML(b, 'tut')}</div></div><div>
+      <p class="tsay">${esc(s.say)}</p><p class="tsys">${esc(s.sys)}</p>
+      <div class="tact"><button class="tskip" id="tutSkip">건너뛰기</button>${s.next ? '<button class="btn" id="tutNext">다음</button>' : ''}</div></div></div>`;
+    $('tutSkip').onclick = skipTutorial;
+    if ($('tutNext')) $('tutNext').onclick = tutAdvance;
+    const els = applyTutHl();
+    if (moved && els[0]) els[0].scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
   function pump() {
     if (showing || !queue.length) return;
     const e = queue.shift(); showing = true;
-    $('modal').innerHTML = `<div class="modal"><div class="sheet">${e.img ? `<img class="pic" src="${e.img}" alt="" onerror="this.remove()">` : ''}<div class="body">
-      ${e.eyebrow ? `<div class="eyebrow">${esc(e.eyebrow)}</div>` : ''}<h2>${esc(e.title)}</h2>${e.text ? `<p>${esc(e.text)}</p>` : ''}
+    $('modal').innerHTML = `<div class="modal"><div class="sheet${e.dots ? ' scene' : ''}">${e.img ? `<img class="pic" src="${e.img}" alt="" onerror="this.remove()">` : ''}<div class="body">
+      ${e.eyebrow ? `<div class="eyebrow">${esc(e.eyebrow)}</div>` : ''}${e.title ? `<h2>${esc(e.title)}</h2>` : ''}${e.text ? `<p>${esc(e.text)}</p>` : ''}
+      ${e.dots ? `<div class="dots" aria-label="${e.dots[0] + 1}/${e.dots[1]}">${Array.from({ length: e.dots[1] }, (_, k) => k === e.dots[0] ? '●' : '○').join(' ')}</div>` : ''}
       <div class="${e.grid ? 'buildgrid' : 'opts'}">${e.choices.map((c, i) => `<button class="opt" data-i="${i}" ${c.disabled && c.disabled() ? 'disabled' : ''}>${c.mini || ''}<b>${esc(c.label)}</b>${c.sub ? `<span>${esc(c.sub)}</span>` : ''}</button>`).join('')}</div></div></div></div>`;
     $('modal').querySelectorAll('.opt').forEach(b => b.onclick = () => {
       const c = e.choices[+b.dataset.i]; $('modal').innerHTML = ''; showing = false;
@@ -654,6 +750,7 @@
       el.querySelector('.out').textContent = out;
       const pv = el.querySelector('.pv'); if (pv) pv.textContent = selF && t && r.cap ? preview(selF, s) : '';
     });
+    applyTutHl(); // 방을 다시 그리면 강조가 사라진다
     const cr = $('cradle');
     if (cr) cr.innerHTML = working(slotOf('nursery')).length ? '<span class="zz">z z</span>' : '<span class="cry">으앙!</span>';
     // 습격 체력 바
@@ -676,7 +773,7 @@
 
   // 사람 모형: 몸 색 = 가장 높은 능력치
   function figHTML(f, kind) {
-    const hair = f.hero ? '#2A2220' : f.id === 'ottilie' ? '#C9C6C0' : kind === 'raider' || f.raiderLook ? '#3A2B20' : '#6B4A30';
+    const hair = f.hero ? '#2A2220' : kind === 'raider' || f.raiderLook ? '#3A2B20' : '#6B4A30';
     const body = kind === 'cand' ? BODY[best(f)] : kind === 'merch' ? '#6B5A8E' : kind === 'leo' ? '#2F6F6A' : kind === 'raider' ? '#8E2F2A' : f.hero ? '#2E2E36' : BODY[best(f)];
     return `<div class="hair" style="background:${hair}"></div><div class="h"></div><div class="b" style="background:${body}${f.hero ? ';box-shadow:inset 0 3px 0 #B9A889' : ''}"></div><div class="l a"></div><div class="l c"></div>${kind ? '' : `<div class="hpb"><i></i></div>`}<div class="nm">${esc(f.name)}</div>`;
   }
@@ -723,30 +820,29 @@
       o.el.classList.toggle('sel', G.sel === f.id);
       o.el.querySelector('.hpb i').style.width = (f.hp / maxHp(f) * 100) + '%';
     }
-    // 레오폴트: 응접실이 비면 안뜰을 엿보며 다닌다
     // 정찰이 데려온 후보는 안뜰에 서서 기다린다
     G.candidates.forEach((c, i) => {
       const id = '__cand' + c.id, o = ensureFig(id, c, 'cand'); alive.add(id);
       if (!o.bound) { o.bound = true; o.el.insertAdjacentHTML('beforeend', '<span class="eye cand">후보</span>'); o.el.addEventListener('click', e => { e.stopPropagation(); if (!showing) candidateSheet(c); }); }
       const y = geo.yard; o.x = y.x + 18 + i * 34; o.el.style.left = o.x + 'px'; o.el.style.top = (y.y + y.h - 4 - 38) + 'px';
     });
-    // 소금 장수는 안뜰 오른쪽에 하루 서 있다
+    // 소금 장수는 머무는 동안 안뜰 오른쪽에 서 있다. 레오폴트: 응접실이 비면 안뜰을 엿보며 다닌다
     if (G.merchant) {
       const o = ensureFig('__merch', { name: '소금 장수' }, 'merch'); alive.add('__merch');
       if (!o.bound) { o.bound = true; o.el.insertAdjacentHTML('beforeend', '<span class="eye merch">상인</span>'); o.el.addEventListener('click', e => { e.stopPropagation(); if (!showing) merchantSheet(); }); }
       const y = geo.yard; o.x = y.x + y.w - 72; o.el.style.left = o.x + 'px'; o.el.style.top = (y.y + y.h - 4 - 38) + 'px';
     }
-    // 수도 추모 미사에 엘레노어와 동행 중이면 레오폴트도 성에 없다 — 둘 중 하나만 남아 있으면 어색했다
-    if (away()) { const o = figs.get('__leo'); if (o) { o.el.remove(); figs.delete('__leo'); } }
-    else {
-    const leoIn = working(slotOf('parlor')).length > 0, ps = slotOf('parlor');
-    const leo = ensureFig('__leo', { name: '레오폴트', room: leoIn ? ps : null }, 'leo'); alive.add('__leo');
-    const la = areaOf({ room: leoIn ? ps : null });
-    if (leo.room !== (leoIn ? ps : null)) { leo.room = leoIn ? ps : null; leo.x = la.x0 + 10; leo.tx = null; leo.el.querySelector('.eye')?.remove(); if (!leoIn) leo.el.insertAdjacentHTML('beforeend', '<span class="eye">엿보는 중</span>'); }
-    // 응접실에서는 오른쪽 의자 자리에 앉힌다 — 영지민 자리와 겹치지 않게
-    if (leoIn) { leo.x = geo.rooms[ps].x + geo.rooms[ps].w - 34; leo.el.classList.remove('walk'); }
-    else { if (leo.tx == null) leo.tx = la.x0 + Math.random() * (la.x1 - la.x0); const dx = leo.tx - leo.x, st = 0.025 * dt; if (Math.abs(dx) <= st) leo.tx = null; else leo.x += Math.sign(dx) * st; leo.el.classList.add('walk'); }
-    leo.el.style.left = leo.x + 'px'; leo.el.style.top = (la.floor - 38) + 'px';
+    // 레오폴트는 봄 8일에 온다. 그 뒤로는 엘레노어가 국경 성에 가 있어도 성에 남는다
+    const lv = G.leoHere ? leoView() : 'room';
+    if (lv !== 'room') { // room = 객실에 있어 보이지 않는다
+      const ps = slotOf('parlor'), inP = lv === 'parlor';
+      const leo = ensureFig('__leo', { name: '레오폴트', room: inP ? ps : null }, 'leo'); alive.add('__leo');
+      const la = areaOf({ room: inP ? ps : null });
+      if (leo.view !== lv) { leo.view = lv; leo.x = la.x0 + 10; leo.tx = null; leo.el.querySelector('.eye')?.remove(); if (!inP) leo.el.insertAdjacentHTML('beforeend', lv === 'peek' ? '<span class="eye">엿보는 중</span>' : '<span class="eye calm">산책 중</span>'); }
+      // 응접실에서는 오른쪽 의자 자리에 앉힌다 — 영지민 자리와 겹치지 않게
+      if (inP) { leo.x = geo.rooms[ps].x + geo.rooms[ps].w - 34; leo.el.classList.remove('walk'); }
+      else { if (leo.tx == null) leo.tx = la.x0 + Math.random() * (la.x1 - la.x0); const dx = leo.tx - leo.x, st = 0.025 * dt; if (Math.abs(dx) <= st) leo.tx = null; else leo.x += Math.sign(dx) * st; leo.el.classList.add('walk'); }
+      leo.el.style.left = leo.x + 'px'; leo.el.style.top = (la.floor - 38) + 'px';
     }
     // 호르칸
     for (let i = 0; i < 3; i++) {
@@ -845,14 +941,15 @@
   function resNote(r) {
     const d = daily(), n = G.folk.filter(f => !f.away).length;
     if (r === 'food') return `식량: 주방이 하루 ${made('food').toFixed(1)}을 만들고, ${n}명이 하루 ${eats().toFixed(1)}을 먹는다(한 사람 0.5). 하루 ${fmt(d.food)}${daysLeft(G.res.food, d.food) < Infinity ? `, ${daysLeft(G.res.food, d.food)}일 뒤 바닥` : ''}. 0이 되면 모두 체력이 하루 8씩 깎인다.`;
-    if (r === 'wood') return `장작: 벌목장이 하루 ${made('wood').toFixed(1)}을 만들고, 추위 ${COLD()}만큼 하루 ${woodUse()}이 든다(겨울 2, 눈보라 4). 하루 ${fmt(d.wood)}${daysLeft(G.res.wood, d.wood) < Infinity ? `, ${daysLeft(G.res.wood, d.wood)}일 뒤 바닥` : ''}. 0이 되면 모두 체력이 하루 ${COLD()}씩, 율리안 건강이 하루 ${5 * COLD()}씩 깎인다.`;
+    if (r === 'wood') return `장작: 벌목장이 하루 ${made('wood').toFixed(1)}을 만들고, 추위 ${COLD()}만큼 하루 ${woodUse()}이 든다(봄 1 · 여름 0 · 가을 1 · 겨울 2 · 눈보라 +2). 하루 ${fmt(d.wood)}${daysLeft(G.res.wood, d.wood) < Infinity ? `, ${daysLeft(G.res.wood, d.wood)}일 뒤 바닥` : ''}. 0이 되면 모두 체력이 하루 ${COLD()}씩, 율리안 건강이 하루 ${5 * COLD()}씩 깎인다.`;
     if (r === 'gold') return `금화: 대장간이 하루 ${made('gold').toFixed(1)}을 만든다. 습격 전리품과 정찰로도 얻는다. 방을 짓고 올리고, 무기를 벼리고, 상인에게서 사는 데 쓴다. 기준 가치는 금화 1 = 식량 ${B.vGold}.`;
     return `영지민 ${G.folk.length}명 / 정원 ${popCap()}명. 숙소 하나마다 정원 +4. 정원이 차면 새 사람을 받을 수 없다.`;
   }
   function renderHud() {
     if (!G) return;
-    const d = daily(), j = G.julian, nextRaid = K.raids.find(r => r.day > G.day);
-    $('date').textContent = `${dateOf(G.day)} · 감찰단까지 ${Math.max(0, K.totalDays - G.day)}일`;
+    const d = daily(), j = G.julian, nextRaid = K.raids.find(r => r.day > doy()), toInsp = K.totalDays - doy(), yr = yearOf(G.day);
+    // 1년 = 120일이지만 나이는 겨울을 날 때마다(봄 1일) 한 살씩 센다
+    $('date').textContent = `${dateOf(G.day)} · ${yr === 1 ? `생후 ${30 + G.day}일` : `${yr - 1}세`} · 감찰단 ${toInsp}일 뒤`;
     $('speed').innerHTML = [[0, '❚❚'], [1, '1×'], [2, '2×'], [4, '4×']].map(([v, l]) => `<button data-sp="${v}" class="${G.speed === v ? 'on' : ''}" aria-label="속도 ${l}">${l}</button>`).join('');
     $('speed').querySelectorAll('button').forEach(b => b.onclick = () => { G.speed = +b.dataset.sp; renderHud(); });
     const fl = daysLeft(G.res.food, d.food), wl = daysLeft(G.res.wood, d.wood);
@@ -865,15 +962,15 @@
     $('crib').innerHTML = `<img src="media/julian.webp" alt="율리안">
       <div class="meter m-health ${j.health < 30 ? 'warn' : ''}">율리안 건강 ${Math.round(j.health)}<div class="t"><i style="width:${j.health}%"></i></div></div>
       <div class="meter m-bond">애착 ${Math.round(j.bond)}<div class="t"><i style="width:${j.bond}%"></i></div></div>
-      <div class="meter m-sus ${G.sus >= SUS_SEARCH ? 'warn' : ''}">의심 ${Math.round(G.sus)} <small>${G.sus < SUS_CLEAN ? '감찰 통과' : G.sus < SUS_SEARCH ? '레오폴트가 남음' : `수색 · 숨기기 ${hideScore()}`}</small><div class="t"><i style="width:${G.sus}%"></i><b class="goal" style="left:40%"></b><b class="goal" style="left:70%"></b></div></div>`;
+      <div class="meter m-sus ${G.sus >= SUS_SEARCH ? 'warn' : ''}">의심 ${Math.round(G.sus)} <small>${!G.leoHere ? '손님 없음' : G.sus < SUS_CLEAN ? '감찰 통과' : G.sus < SUS_SEARCH ? '레오폴트가 남음' : `수색 · 숨기기 ${hideScore()}`}</small><div class="t"><i style="width:${G.sus}%"></i><b class="goal" style="left:40%"></b><b class="goal" style="left:70%"></b></div></div>`;
     $('banner').innerHTML = G.raid ? `<div class="banner">${esc(G.raid.name)} 습격 중! 전투력 ${G.raid.F} vs 방어 ${Math.round(defense())}. 힘센 영지민을 성문으로. 성문 버팀 ${Math.ceil(G.raid.gateHp)}/${gateHold()} — 무너질 때 호르칸 체력이 ${HIDE_MAX}을 넘으면 요람실이 털린다</div>`
-      : K.totalDays - G.day <= 10 ? `<div class="banner">감찰단 ${K.totalDays - G.day}일 뒤 — 지금 의심 ${Math.round(G.sus)}: ${G.sus < SUS_CLEAN ? '이대로면 빈손으로 돌아간다' : G.sus < SUS_SEARCH ? '돌아가지만 레오폴트가 남는다 (40 미만이면 깨끗하게 끝난다)' : `성을 뒤진다 — 숨기기 ${hideScore()}가 의심보다 커야 한다`}</div>`
+      : toInsp <= 10 ? `<div class="banner">감찰단 ${toInsp}일 뒤 · 의심 ${Math.round(G.sus)} → ${G.sus < SUS_CLEAN ? '빈손 · 의심 10 · 레오폴트 떠남' : G.sus < SUS_SEARCH ? '의심 −15 · 레오폴트 남음 (40 미만이면 떠난다)' : `수색 — 숨기기 ${hideScore()}가 의심보다 커야 한다`}</div>`
       : !slotOf('kitchen') || !slotOf('lumber') ? `<div class="banner">${!slotOf('kitchen') ? '주방' : '벌목장'}이 없다 — 빈 칸을 눌러 짓는다 (금화 40 · 2일). 식량 ${daysLeft(G.res.food, daily().food) < Infinity ? daysLeft(G.res.food, daily().food) + '일' : '충분'} · 장작 ${daysLeft(G.res.wood, daily().wood) < Infinity ? daysLeft(G.res.wood, daily().wood) + '일' : '충분'} 뒤 바닥</div>`
       : G.res.food <= 0 ? `<div class="banner">식량이 바닥났다. 영지민이 굶주려 쓰러진다 — 주방에 솜씨 좋은 사람을.</div>`
-      : nextRaid && nextRaid.day - G.day <= 3 ? `<div class="banner">경보: ${esc(nextRaid.name)} ${nextRaid.day - G.day}일 뒤. 성문(왼쪽 위)에 힘센 영지민을.</div>`
+      : nextRaid && nextRaid.day - doy() <= 3 ? `<div class="banner">경보: ${esc(nextRaid.name)} ${nextRaid.day - doy()}일 뒤 · 전투력 ${raidF(nextRaid)}. 성문(왼쪽 위)에 힘센 영지민을.</div>`
       : G.day < G.blizzardUntil ? `<div class="banner cold">눈보라 — 추위 ${COLD()}, 장작 하루 ${woodUse()} (${G.blizzardUntil - G.day}일)</div>`
-      : G.merchant ? `<div class="banner cold">소금 장수가 안뜰에 있다 — 누르면 사고판다. 내일 떠난다</div>`
-      : away() ? `<div class="banner cold">엘레노어는 수도에 있다 (${G.absentUntil - G.day}일 뒤 귀환)</div>` : '';
+      : G.merchant ? `<div class="banner cold">소금 장수가 안뜰에 있다 — 누르면 사고판다 · ${G.merchant.until - G.day}일 뒤 떠난다</div>`
+      : away() ? `<div class="banner cold">엘레노어 국경 성 부재 · ${G.absentUntil - G.day}일 뒤 귀환</div>` : '';
     renderPanel(); syncRooms();
     world.querySelectorAll('.prog i').forEach(i => { i.style.width = (acc / DAY_MS * 100) + '%'; });
   }
@@ -906,12 +1003,13 @@
   function frame(now) {
     const dt = Math.min(60, now - lastF); lastF = now;
     animate(dt); drawSnow(dt);
-    if (G && !G.raid && !showing && G.speed) world.querySelectorAll('.prog i').forEach(i => { i.style.width = Math.min(100, (acc / DAY_MS * 100)) + '%'; });
+    if (G && !G.raid && !showing && G.speed && !tutPaused()) world.querySelectorAll('.prog i').forEach(i => { i.style.width = Math.min(100, (acc / DAY_MS * 100)) + '%'; });
     requestAnimationFrame(frame);
   }
   addEventListener('resize', () => { if (G) buildCastle(); });
   // 브라우저 검수용 손잡이
-  window.__keep09 = { get G() { return G; }, upCost, lvOf, startRaid, raidTick, assign, buildCastle, dayTick, sendScouts, scoutQuote, daily, popCap, newGame, craft, equip, merchantSheet, defense, need, COLD, maxHp, get showing() { return showing; } };
+  window.__keep09 = { get G() { return G; }, upCost, lvOf, startRaid, raidTick, assign, buildCastle, dayTick, sendScouts, scoutQuote, daily, popCap, newGame, craft, equip, merchantSheet, defense, need, COLD, maxHp, get showing() { return showing; },
+    skipTutorial, scene, skipIntro() { queue.length = 0; $('modal').innerHTML = ''; showing = false; skipTutorial(); last = performance.now(); } };
   newGame(); renderHud(); requestAnimationFrame(frame);
 })();
 </script>
