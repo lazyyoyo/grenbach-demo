@@ -56,7 +56,8 @@
   .world { position: relative; border-radius: 12px; overflow: hidden; background: linear-gradient(#1B2436 0, #2B3550 60px, #3A4258 120px, #232833 121px); touch-action: none; }
   .mount { position: absolute; left: 0; right: 0; top: 18px; height: 70px; background: #2A3245; clip-path: polygon(0 100%, 0 55%, 12% 20%, 22% 45%, 35% 5%, 48% 40%, 60% 15%, 73% 50%, 85% 10%, 100% 45%, 100% 100%); opacity: .9; }
   .mount.b { top: 34px; background: #39425A; clip-path: polygon(0 100%, 0 70%, 15% 45%, 30% 65%, 45% 30%, 62% 60%, 78% 35%, 100% 60%, 100% 100%); }
-  .snow { position: absolute; inset: 0; pointer-events: none; }
+  /* 캔버스 속성 크기(높이 × DPR)가 CSS 크기로 새면 .world가 안쪽으로 스크롤될 만큼 커진다 — CSS 크기를 고정한다 */
+  .snow { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
   .yard { position: absolute; background: linear-gradient(#5E6675, #4A505C); border-top: 3px solid #E9EEF4; }
   .yard .tag, .room .tag { position: absolute; left: 7px; top: 5px; font-size: 11px; font-weight: 600; letter-spacing: .02em; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
   .yard .tag { color: #E9EEF4; left: auto; right: 8px; top: auto; bottom: 4px; font-weight: 500; font-size: 10.5px; opacity: .8; }
@@ -688,7 +689,7 @@
     const el = $('tut'), s = G && G.tut != null ? TUT[G.tut] : null;
     document.body.classList.toggle('tutoring', !!s);
     el.hidden = !s;
-    if (!s) { el.innerHTML = ''; applyTutHl(); return; }
+    if (!s) { el.innerHTML = ''; applyTutHl(); world.scrollTop = 0; return; }
     const b = K.folk.find(f => f.id === 'bernhard');
     el.innerHTML = `<div class="in"><div class="tfig"><div class="fig npc">${figHTML(b, 'tut')}</div></div><div>
       <p class="tsay">${esc(s.say)}</p><p class="tsys">${esc(typeof s.sys === 'function' ? s.sys() : s.sys)}</p>
@@ -696,7 +697,8 @@
     $('tutSkip').onclick = skipTutorial;
     if ($('tutNext')) $('tutNext').onclick = tutAdvance;
     const els = applyTutHl();
-    if (moved && els[0]) els[0].scrollIntoView({ block: 'center', behavior: 'smooth' });
+    // overflow:hidden인 .world를 scrollIntoView가 안쪽으로 밀어 되돌릴 수 없었다 — 창만 움직인다
+    if (moved && els[0]) { const r = els[0].getBoundingClientRect(); scrollTo({ top: scrollY + r.top - (innerHeight - r.height) / 2, behavior: 'smooth' }); }
   }
   function pump() {
     if (showing || !queue.length) return;
@@ -742,6 +744,7 @@
     }
     world.querySelectorAll('.room').forEach(el => el.addEventListener('click', () => tapSlot(el.dataset.s)));
     sizeSnow(); syncRooms();
+    world.scrollTop = 0; // 이전에 밀린 내부 스크롤이 남지 않게
   }
   // 고른 사람을 이 방에 놓으면 무엇이 바뀌는지 — 놓기 전에 나아지는지 알 수 있게
   function preview(f, slot) {
